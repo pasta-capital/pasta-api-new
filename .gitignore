@@ -1,0 +1,9 @@
+.env
+logs
+dist
+node_modules
+tsconfig.tsbuildinfo
+*.zip
+src/public/cdn/
+src/domiciliation
+ecosystem.config.cjs

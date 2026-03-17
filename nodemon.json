@@ -1,0 +1,7 @@
+{
+  "watch": ["src"],
+  "ext": "ts",
+  "ignore": [],
+  "delay": "500ms",
+  "exec": "tsx --experimental-specifier-resolution=node ./src"
+}

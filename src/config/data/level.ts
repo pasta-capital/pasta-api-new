@@ -1,0 +1,42 @@
+export default [
+  {
+    name: "Basic",
+    level: 1,
+    pointsRequired: 0,
+    creditLimit: 100,
+    allowedFeeCount: [6],
+    subplan: "1",
+  },
+  {
+    name: "Silver",
+    level: 2,
+    pointsRequired: 250,
+    creditLimit: 120,
+    allowedFeeCount: [6, 8],
+    subplan: "2",
+  },
+  {
+    name: "Gold",
+    level: 3,
+    pointsRequired: 500,
+    creditLimit: 140,
+    allowedFeeCount: [6, 8, 10],
+    subplan: "3",
+  },
+  {
+    name: "Platinum",
+    level: 4,
+    pointsRequired: 850,
+    creditLimit: 170,
+    allowedFeeCount: [6, 8, 10, 12],
+    subplan: "4",
+  },
+  {
+    name: "Diamond",
+    level: 5,
+    pointsRequired: 1250,
+    creditLimit: 200,
+    allowedFeeCount: [6, 8, 10, 12],
+    subplan: "5",
+  },
+];

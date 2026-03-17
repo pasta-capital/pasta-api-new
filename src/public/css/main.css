@@ -1,0 +1,204 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  font-size: 14px;
+}
+.v14_1864 {
+  width: 600px;
+  height: 1080px;
+  background: rgba(255, 255, 255, 1);
+  opacity: 1;
+  position: relative;
+  top: 0px;
+  left: 0px;
+  overflow: hidden;
+}
+.v14_1865 {
+  width: 518px;
+  height: 757px;
+  background: rgba(242, 242, 242, 1);
+  opacity: 1;
+  position: absolute;
+  top: 159px;
+  left: 41px;
+  border-top-left-radius: 45px;
+  border-top-right-radius: 45px;
+  border-bottom-left-radius: 45px;
+  border-bottom-right-radius: 45px;
+  box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.10000000149011612);
+  overflow: hidden;
+}
+.email-img {
+  width: 320px;
+  height: 234px;
+  background: url("../images/email-img.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 91px;
+  left: 99px;
+  overflow: hidden;
+}
+.v14_1931 {
+  width: 453px;
+  height: 351px;
+  background: url("../images/v14_1931.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 358px;
+  left: 34px;
+  overflow: hidden;
+}
+.v14_1932 {
+  width: 453px;
+  color: rgba(75, 75, 75, 1);
+  position: relative;
+  top: 0px;
+  left: 0px;
+  font-family: Poppins;
+  font-weight: Bold;
+  font-size: 32px;
+  opacity: 1;
+  text-align: left;
+}
+.v14_1933 {
+  width: 453px;
+  color: rgba(75, 75, 75, 1);
+  position: absolute;
+  top: 72px;
+  left: 0px;
+  font-family: Poppins;
+  font-weight: Medium;
+  font-size: 18px;
+  opacity: 1;
+  text-align: left;
+}
+.v14_1934 {
+  width: 151px;
+  height: 60px;
+  background: rgba(255, 255, 255, 1);
+  padding: 6px 16px;
+  margin: 11px;
+  opacity: 1;
+  position: absolute;
+  top: 176px;
+  left: 150px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+.v14_1935 {
+  width: 80px;
+  color: rgba(75, 75, 75, 1);
+  position: absolute;
+  top: 6px;
+  left: 16px;
+  font-family: Poppins;
+  font-weight: Bold;
+  font-size: 32px;
+  opacity: 1;
+  text-align: center;
+}
+.copy {
+  width: 28px;
+  height: 28px;
+  background: url("../images/copy.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 16px;
+  left: 107px;
+  overflow: hidden;
+}
+.v14_1937 {
+  width: 453px;
+  height: 1px;
+  background: rgba(207, 207, 207, 1);
+  opacity: 1;
+  position: absolute;
+  top: 284px;
+  left: 0px;
+}
+.v14_1938 {
+  width: 453px;
+  height: 43px;
+  background: url("../images/v14_1938.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 309px;
+  left: 0px;
+  overflow: hidden;
+}
+.v14_1939 {
+  width: 84px;
+  color: rgba(75, 75, 75, 1);
+  position: relative;
+  top: 0px;
+  left: 0px;
+  font-size: 14px;
+  opacity: 1;
+  text-align: left;
+}
+.v14_1940 {
+  width: 90px;
+  color: rgba(75, 75, 75, 1);
+  position: absolute;
+  top: 0px;
+  left: 363px;
+  font-family: Poppins;
+  font-weight: Medium;
+  font-size: 14px;
+  opacity: 1;
+  text-align: right;
+}
+.instagram {
+  width: 18px;
+  height: 18px;
+  background: url("../images/instagram.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 25px;
+  left: 435px;
+  overflow: hidden;
+}
+.v14_1945 {
+  width: 453px;
+  color: rgba(149, 149, 149, 1);
+  position: absolute;
+  top: 947px;
+  left: 75px;
+  font-family: Poppins;
+  font-weight: Medium;
+  font-size: 10px;
+  opacity: 1;
+  text-align: center;
+}
+.logo_pasta {
+  width: 100px;
+  height: 54px;
+  background: url("../images/logo_pasta.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 1;
+  position: absolute;
+  top: 53px;
+  left: 250px;
+  overflow: hidden;
+}
