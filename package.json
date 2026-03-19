@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --signal SIGTERM",
-    "build": "rimraf dist && tsc --build --verbose && babel dist -d dist",
+    "build": "tsc --build",
     "start": "npm run build && node dist/src",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
