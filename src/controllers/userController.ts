@@ -2170,8 +2170,9 @@ export const unregister = asyncHandler(async (req: Request, res: Response) => {
 
   let totalPendingAmount = 0;
   if (debtResult.success && debtResult.data?.Totales?.Totalpendiente) {
+    console.log(debtResult.data);
     totalPendingAmount = parseFloat(
-      debtResult.data.Totales.Totalpendiente.replace(/[^\\d.-]/g, "").trim(),
+      debtResult.data.Totales.Totalpendiente.replace(/[^\d.-]/g, "").trim(),
     );
   }
 
