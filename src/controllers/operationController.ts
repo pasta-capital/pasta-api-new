@@ -967,7 +967,8 @@ export const getCompletedOperations = asyncHandler(
         amount: operation.amountUsd,
         status: operation.status,
         statusName: "Finalizado",
-        iconUrl: `${env.PUBLIC_API_URL}/icons/${operation.icon}-white.png`,
+        //iconUrl: `${env.PUBLIC_API_URL}/icons/${operation.icon}-white.png`,
+        iconUrl: `${operation.icon}`,
       };
     });
 
@@ -1017,7 +1018,8 @@ export const getActiveOperations = asyncHandler(
         createdAt: operation.createdAt,
         amount: operation.amountUsd,
         status: operation.status,
-        iconUrl: `${env.PUBLIC_API_URL}/icons/${operation.icon}-white.png`,
+        // iconUrl: `${env.PUBLIC_API_URL}/icons/${operation.icon}-white.png`,
+        iconUrl: `${operation.icon}`,
         statusName:
           operation.status === "pending"
             ? "En proceso"
@@ -1400,7 +1402,8 @@ export const getOperationPaymentsWithTotal = asyncHandler(
         ? referenceToIconMap.get(posicion.Refapertura)
         : null;
       const iconUrl = operationIcon
-        ? `${env.PUBLIC_API_URL}/icons/${operationIcon}-white.png`
+        ? // ? `${env.PUBLIC_API_URL}/icons/${operationIcon}-white.png`
+          `${operationIcon}`
         : null;
 
       for (const cuota of cuotasArray) {
@@ -3116,10 +3119,12 @@ export const getMovements = asyncHandler(
       user: new Types.ObjectId(userId),
       status: { $in: ["approved", "completed"] },
     } as any;
+
     const paymentsFilter = {
       user: new Types.ObjectId(userId),
       status: "confirmed",
     } as any;
+
     const subscriptionPaymentsFilter = {
       user: new Types.ObjectId(userId),
       status: { $in: ["completed", "paid"] },
@@ -3141,7 +3146,7 @@ export const getMovements = asyncHandler(
     const totalCount =
       operationsCount + paymentsCount + subscriptionPaymentsCount;
 
-    let movements: any[] = [];
+    // --- PROJECT DEFINITIONS ---
 
     const paymentProject = {
       _id: 0,
@@ -3163,18 +3168,44 @@ export const getMovements = asyncHandler(
       id: "$_id",
       createdAt: 1,
       amountUsd: "$amountUsd",
-      amountVef: "$settledAmount",
+      amountVef: "$amountVef",
       amountVefBase: "$settledAmount",
+      feeCount: "$feeCount",
       commission: "$commissionAmount",
+      accountNumber: "$account.number",
+      rate: "$rate",
       reference: "$reference",
       movementType: { $literal: "operation" },
       description: { $literal: "Pedido" },
-      iconUrl: {
-        $concat: [`${env.PUBLIC_API_URL}/icons/`, "$icon", "-white.png"],
-      },
+      iconUrl: { $concat: ["$icon"] },
       status: "sent",
+      // --- THE FULL QUOTAS LIST ---
+      quotas: {
+        totalCount: { $size: "$payments" },
+        paidCount: {
+          $size: {
+            $filter: {
+              input: "$payments",
+              as: "p",
+              cond: { $eq: ["$$p.status", "paid"] },
+            },
+          },
+        },
+        // This returns the array of 6 installments with their specific info
+        items: {
+          $map: {
+            input: "$payments",
+            as: "p",
+            in: {
+              id: "$$p._id",
+              date: "$$p.date", // The quota due date
+              status: "$$p.status", // 'pending' or 'paid'
+              amount: "$$p.amountUsdTotal",
+            },
+          },
+        },
+      },
     };
-
     const subscriptionPaymentProject = {
       _id: 0,
       id: "$_id",
@@ -3190,20 +3221,28 @@ export const getMovements = asyncHandler(
       status: "received",
     };
 
+    // --- AGGREGATION EXECUTION ---
+
+    let movements: any[] = [];
+
     if (includeOperations && includePayments) {
       movements = await Operation.aggregate([
         { $match: operationsFilter },
         {
-          $project: operationProject,
+          $lookup: {
+            from: "OperationPayment",
+            localField: "_id",
+            foreignField: "operation",
+            as: "payments",
+          },
         },
+        { $project: operationProject },
         {
           $unionWith: {
             coll: "Payment",
             pipeline: [
               { $match: paymentsFilter },
-              {
-                $project: paymentProject,
-              },
+              { $project: paymentProject },
             ],
           },
         },
@@ -3212,9 +3251,7 @@ export const getMovements = asyncHandler(
             coll: "SubscriptionPayment",
             pipeline: [
               { $match: subscriptionPaymentsFilter },
-              {
-                $project: subscriptionPaymentProject,
-              },
+              { $project: subscriptionPaymentProject },
             ],
           },
         },
@@ -3226,26 +3263,29 @@ export const getMovements = asyncHandler(
       movements = await Operation.aggregate([
         { $match: operationsFilter },
         {
-          $project: operationProject,
+          $lookup: {
+            from: "operationpayments",
+            localField: "_id",
+            foreignField: "operation",
+            as: "payments",
+          },
         },
+        { $project: operationProject },
         { $sort: { createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ]).exec();
     } else {
+      // Only Payments and Subscriptions
       movements = await Payment.aggregate([
         { $match: paymentsFilter },
-        {
-          $project: paymentProject,
-        },
+        { $project: paymentProject },
         {
           $unionWith: {
             coll: "SubscriptionPayment",
             pipeline: [
               { $match: subscriptionPaymentsFilter },
-              {
-                $project: subscriptionPaymentProject,
-              },
+              { $project: subscriptionPaymentProject },
             ],
           },
         },

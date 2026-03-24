@@ -2,12 +2,12 @@
   "name": "api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/index.js",
   "type": "module",
   "scripts": {
     "dev": "nodemon --signal SIGTERM",
     "build": "tsc --build",
-    "start": "npm run build && node dist/src",
+    "start": "node dist/src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

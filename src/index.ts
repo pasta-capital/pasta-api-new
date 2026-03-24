@@ -72,6 +72,7 @@ if (
   process.on("SIGINT", function () {
     // this is only called on ctrl+c, not restart
     console.log("SIGINT");
-    process.kill(process.pid, "SIGINT");
+    //process.kill(process.pid, "SIGINT");
+    process.exit(0);
   });
 }

@@ -1,4 +1,6 @@
-# Flujos de la API
+#
+
+de la API
 
 Documentación de flujos y endpoints para Cliente y Administrador.
 
@@ -7,7 +9,7 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 ## Índice
 
 - [Flujos Cliente](#flujos-cliente)
-- [Flujos Administrador](#flujos-administrador) 
+- [Flujos Administrador](#flujos-administrador)
 
 ---
 
@@ -15,27 +17,22 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 
 ### Login
 
-
 | Acción         | Método | Endpoint       |
 | -------------- | ------ | -------------- |
 | Iniciar sesión | `POST` | `/users/login` |
 
-
 ---
 
 ### Olvido de clave
-
 
 | Acción          | Método | Endpoint                 |
 | --------------- | ------ | ------------------------ |
 | Solicitud       | `POST` | `/users/forgot-password` |
 | Recuperar clave | `POST` | `/users/reset-password`  |
 
-
 ---
 
 ### Registro
-
 
 | Acción                         | Método | Endpoint                            |
 | ------------------------------ | ------ | ----------------------------------- |
@@ -45,11 +42,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Obtener términos y condiciones | `GET`  | `/users/terms-and-conditions`       |
 | Completar registro             | `POST` | `/users/register`                   |
 
-
 ---
 
 ### Home
-
 
 | Acción                                    | Método | Endpoint               |
 | ----------------------------------------- | ------ | ---------------------- |
@@ -57,11 +52,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Límite disponible                         | `GET`  | `/v1/users`            |
 | Notificaciones no leídas                  | `GET`  | `/notifications-v2/me` |
 
-
 ---
 
 ### Perfil
-
 
 | Acción                          | Método | Endpoint                              |
 | ------------------------------- | ------ | ------------------------------------- |
@@ -75,11 +68,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Configuración de notificaciones | `POST` | `/users/notifications-config`         |
 | Borrar cuenta pasta             | `POST` | `/users/unregister`                   |
 
-
 ---
 
 ### Historial
-
 
 | Acción                 | Método | Endpoint                  |
 | ---------------------- | ------ | ------------------------- |
@@ -87,11 +78,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Listado de movimientos | `GET`  | `/operation/movements`    |
 | Detalle de movimiento  | `GET`  | `/operation/details/{ID}` |
 
-
 ---
 
 ### Pedir dinero
-
 
 | Acción                                                                                                           | Método | Endpoint             |
 | ---------------------------------------------------------------------------------------------------------------- | ------ | -------------------- |
@@ -99,11 +88,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Listado de cuentas                                                                                               | `GET`  | `/accounts`          |
 | Confirmación de pedido (Confirmar pedido luego de que se muestre resumen de la operación e ingresado comentario) | `POST` | `/operation/confirm` |
 
-
 ---
 
 ### Pagar cuota
-
 
 | Acción                                                                                     | Método | Endpoint                           |
 | ------------------------------------------------------------------------------------------ | ------ | ---------------------------------- |
@@ -111,13 +98,11 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Envío de clave OTP (en caso de seleccionar débito directo)                                 | `POST` | `/operation/request-otp`           |
 | Confirmación de pago (luego de colocar datos de pago móvil o código otp en caso de débito) | `POST` | `/operation/pay-debt-confirmation` |
 
-
 ---
 
 ## Flujos Administrador
 
 ### Login
-
 
 | Acción                                      | Método | Endpoint                       |
 | ------------------------------------------- | ------ | ------------------------------ |
@@ -125,11 +110,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Olvido de clave                             | `POST` | `/admin/users/forgot-password` |
 | Recuperación de clave/Confirmación de email | `POST` | `/admin/users/confirm-email`   |
 
-
 ---
 
 ### Dashboard
-
 
 | Acción                             | Método | Endpoint                                   |
 | ---------------------------------- | ------ | ------------------------------------------ |
@@ -142,11 +125,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Historial de pagos y liquidaciones | `GET`  | `/dashboard/payments-liquidations-history` |
 | Clientes Recurrentes               | `GET`  | `/dashboard/recurring-clients-indicator`   |
 
-
 ---
 
 ### Configuración — Roles
-
 
 | Acción   | Método   | Endpoint      |
 | -------- | -------- | ------------- |
@@ -156,11 +137,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Editar   | `PUT`    | `/roles/{ID}` |
 | Eliminar | `DELETE` | `/roles/{ID}` |
 
-
 ---
 
 ### Configuración — Usuarios
-
 
 | Acción                     | Método  | Endpoint            |
 | -------------------------- | ------- | ------------------- |
@@ -169,22 +148,18 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Crear                      | `POST`  | `/admin/create`     |
 | Editar, activar/desactivar | `PATCH` | `/admin/users/{ID}` |
 
-
 ---
 
 ### Configuración — Credit Score
-
 
 | Acción                | Método | Endpoint        |
 | --------------------- | ------ | --------------- |
 | Obtener configuración | `GET`  | `/credit-score` |
 | Editar configuración  | `PUT`  | `/credit-score` |
 
-
 ---
 
 ### Clientes
-
 
 | Acción         | Método  | Endpoint                          |
 | -------------- | ------- | --------------------------------- |
@@ -196,53 +171,43 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Perfil Riesgo  | `GET`   | `/agile-check/perfil-riesgo/{ID}` |
 | Editar cliente | `PATCH` | `/users/{ID}`                     |
 
-
 ---
 
 ### Operaciones — Solicitudes de crédito
-
 
 | Acción  | Método | Endpoint              |
 | ------- | ------ | --------------------- |
 | Listado | `GET`  | `/operation/all`      |
 | Detalle | `GET`  | `/operation/get/{ID}` |
 
-
 ---
 
 ### Operaciones — Cuotas
-
 
 | Acción  | Método | Endpoint                  |
 | ------- | ------ | ------------------------- |
 | Listado | `GET`  | `/operation/all-payments` |
 
-
 ---
 
 ### Operaciones — Pagos
-
 
 | Acción  | Método | Endpoint                   |
 | ------- | ------ | -------------------------- |
 | Listado | `GET`  | `/operation/payments-list` |
 | Detalle | `GET`  | `/operation/payment/{ID}`  |
 
-
 ---
 
 ### Histórico tasa BCV
-
 
 | Acción  | Método | Endpoint        |
 | ------- | ------ | --------------- |
 | Listado | `GET`  | `/rate/history` |
 
-
 ---
 
 ### Grupos
-
 
 | Acción   | Método   | Endpoint       |
 | -------- | -------- | -------------- |
@@ -252,11 +217,9 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Editar   | `PATCH`  | `/groups/{ID}` |
 | Eliminar | `DELETE` | `/groups/{ID}` |
 
-
 ---
 
 ### Notificaciones
-
 
 | Acción                        | Método   | Endpoint                                                 |
 | ----------------------------- | -------- | -------------------------------------------------------- |
@@ -266,5 +229,3 @@ Documentación de flujos y endpoints para Cliente y Administrador.
 | Listar Configuración de días  | `GET`    | `/notifications-v2/settings/upcoming-payment-days`       |
 | Crear configuración de día    | `POST`   | `/notifications-v2/settings/upcoming-payment-days`       |
 | Eliminar configuración de día | `DELETE` | `/notifications-v2/settings/upcoming-payment-days/{day}` |
-
-

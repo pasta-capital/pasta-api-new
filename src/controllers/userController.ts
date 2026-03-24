@@ -309,7 +309,9 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const rif =
     (results[0]?.identificationType ?? "") + (results[0]?.document ?? "");
   const debtResult = await consultDebt({ Rif: rif });
-
+  loggers.operation(
+    "Resultado de consultDebt para getUser:" + JSON.stringify(debtResult),
+  );
   let totalPendingAmount = 0;
   if (debtResult.success && debtResult.data?.Totales?.Totalpendiente) {
     totalPendingAmount = parseFloat(
@@ -1527,7 +1529,7 @@ export const editProfile = asyncHandler(async (req: Request, res: Response) => {
     html: editProfileTemplate(user.name.split(" ")[0], token.token),
   };
 
-  mailHelper.sendMail(mailOptions);
+  await mailHelper.sendMail(mailOptions);
 
   return res.status(200).json({
     success: true,
