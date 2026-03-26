@@ -361,7 +361,6 @@ export const requestOperation = asyncHandler(
           code: "not_found",
         });
       }
-
       operationData.account = account;
     }
 
@@ -403,6 +402,7 @@ export const requestOperation = asyncHandler(
             identificationType: user.identificationType,
             identificationNumber: user.document,
             number: operationData.account.number,
+            name: operationData.account.bank.name,
           }
         : undefined,
       paymentPlan: operationPayments.map((operationPayment: any) => ({
