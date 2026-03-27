@@ -32,6 +32,7 @@ import upcomingPaymentRoutes from "./routes/upcomingPaymentRoutes";
 import { errorHandler } from "./middlewares/errorHandler";
 import path from "path";
 import { fileURLToPath } from "url";
+import diditRoutes from "./routes/diditRoutes";
 
 const app = express();
 
@@ -95,6 +96,9 @@ app.use(`/${env.API_VERSION}/la`, laRoutes);
 app.use(`/${env.API_VERSION}/overdue-payments`, overduePaymentRoutes);
 app.use(`/${env.API_VERSION}/customer-history`, customerHistoryRoutes);
 app.use(`/${env.API_VERSION}/upcoming-payments`, upcomingPaymentRoutes);
+
+// New routes created by the PerCapital Tech Team
+app.use(`/${env.API_VERSION}/didit`, diditRoutes);
 
 app.use(errorHandler);
 
