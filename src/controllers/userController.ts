@@ -904,6 +904,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   let diditSession;
   try {
     diditSession = await getSessionDecision(body.sessionId);
+    console.log("DiditSesion response : ", JSON.stringify(diditSession));
   } catch (error) {
     return res.status(500).json({
       success: false,
