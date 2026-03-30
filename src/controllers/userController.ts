@@ -907,7 +907,6 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     loggers.operation("Didit - getSessionDecision() - Success", {
       action: "didit_verification",
       step: "success",
-      response: JSON.stringify(diditSession),
     });
   } catch (error) {
     loggers.operation("Didit - getSessionDecision() - Error", {
