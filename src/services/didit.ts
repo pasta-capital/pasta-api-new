@@ -1,7 +1,8 @@
 import * as env from "../config/env.config";
 
 export const getSessionDecision = async (sessionId: string) => {
-  const endpoint = `${env.DIDIT_VERIFICATION_URL}/session/${sessionId}/decision/`;
+  // const endpoint = `${env.DIDIT_VERIFICATION_URL}/session/${sessionId}/decision/`;
+  const endpoint = `${env.DIDIT_VERIFICATION_URL}/${sessionId}/decision/`;
 
   const headers = {
     "Content-Type": "application/json",

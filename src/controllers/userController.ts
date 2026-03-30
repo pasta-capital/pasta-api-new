@@ -904,8 +904,17 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   let diditSession;
   try {
     diditSession = await getSessionDecision(body.sessionId);
-    console.log("DiditSesion response : ", JSON.stringify(diditSession));
+    loggers.operation("Didit - getSessionDecision() - Success", {
+      action: "didit_verification",
+      step: "success",
+      response: JSON.stringify(diditSession),
+    });
   } catch (error) {
+    loggers.operation("Didit - getSessionDecision() - Error", {
+      action: "didit_verification",
+      step: "error",
+      error: JSON.stringify(error),
+    });
     return res.status(500).json({
       success: false,
       message: "Se produjo un error verificando el usuario",

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import * as loggers from "../common/logger";
+import * as env from "../config/env.config";
 
 const diditVerification = async (req: Request, res: Response) => {
   const { sessionId } = req.params;
@@ -17,10 +18,10 @@ const diditVerification = async (req: Request, res: Response) => {
     });
 
     const response = await axios.get(
-      `${process.env.P_DIDIT_VERIFICATION_URL}/${sessionId}/decision`,
+      `${env.DIDIT_VERIFICATION_URL}/${sessionId}/decision`,
       {
         headers: {
-          "x-api-key": `${process.env.P_DIDIT_API_KEY}`,
+          "x-api-key": `${env.DIDIT_API_KEY}`,
           Accept: "application/json",
         },
       },
@@ -29,7 +30,6 @@ const diditVerification = async (req: Request, res: Response) => {
       action: "didit_verification",
       step: "success",
       sessionId,
-      response: response.data,
     });
     res.json({ success: true, data: response.data });
   } catch (error: any) {
@@ -62,10 +62,10 @@ const diditDeleteSession = async (req: Request, res: Response) => {
     });
 
     const response = await axios.delete(
-      `${process.env.P_DIDIT_VERIFICATION_URL}/${sessionId}/delete`,
+      `${env.DIDIT_VERIFICATION_URL}/${sessionId}/delete`,
       {
         headers: {
-          "x-api-key": `${process.env.P_DIDIT_API_KEY}`,
+          "x-api-key": `${env.DIDIT_API_KEY}`,
           Accept: "application/json",
         },
       },
@@ -74,7 +74,6 @@ const diditDeleteSession = async (req: Request, res: Response) => {
       action: "didit_delete",
       step: "success",
       sessionId,
-      response: response.data,
     });
     res.json({ success: true, data: response.data });
   } catch (error: any) {
