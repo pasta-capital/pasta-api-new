@@ -1044,22 +1044,23 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Validar que existe una pre-suscripción válida antes de continuar con el registro
-  const normalizedDocument = body.document.replace(/^[A-Za-z]+/, "");
-  const preSubscriptionResult = await getPreSubscription(normalizedDocument);
+  // const normalizedDocument = body.document.replace(/^[A-Za-z]+/, "");
+  // #pending_to_restore, process deleted due to business decision
+  // const preSubscriptionResult = await getPreSubscription(normalizedDocument);
 
-  if (
-    (!preSubscriptionResult.success || !preSubscriptionResult.data) &&
-    env.ENABLE_SUBSCRIPTION_ON_REGISTER
-  ) {
-    return res.status(400).json({
-      success: false,
-      message:
-        "No existe una pre-suscripción válida. Debe completar el proceso de domiciliación antes de registrarse.",
-      code: "subscription_required",
-    });
-  }
+  // if (
+  //   (!preSubscriptionResult.success || !preSubscriptionResult.data) &&
+  //   env.ENABLE_SUBSCRIPTION_ON_REGISTER
+  // ) {
+  //   return res.status(400).json({
+  //     success: false,
+  //     message:
+  //       "No existe una pre-suscripción válida. Debe completar el proceso de domiciliación antes de registrarse.",
+  //     code: "subscription_required",
+  //   });
+  // }
 
-  const preSubscription = preSubscriptionResult.data;
+  // const preSubscription = preSubscriptionResult.data;
 
   const user = await User.create(body);
   const bank = await Bank.findOne({ code: body.account.code });
@@ -1080,24 +1081,25 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Cobro de domiciliación al momento del registro
-  if (false) {
-    const domiciliationResult = await processRegistrationDomiciliation(
-      user,
-      diditSession,
-      bank?.code,
-      body.account.number,
-    );
-    if (!domiciliationResult.success) {
-      return res
-        .status(
-          domiciliationResult.code === "rate_not_available" ||
-            domiciliationResult.code === "domiciliation_process_error"
-            ? 500
-            : 400,
-        )
-        .json(domiciliationResult);
-    }
-  }
+  // #pending_to_restore, process deleted due to business decision
+  // if (false) {
+  //   const domiciliationResult = await processRegistrationDomiciliation(
+  //     user,
+  //     diditSession,
+  //     bank?.code,
+  //     body.account.number,
+  //   );
+  //   if (!domiciliationResult.success) {
+  //     return res
+  //       .status(
+  //         domiciliationResult.code === "rate_not_available" ||
+  //           domiciliationResult.code === "domiciliation_process_error"
+  //           ? 500
+  //           : 400,
+  //       )
+  //       .json(domiciliationResult);
+  //   }
+  // }
 
   // Crear UserAddress después de crear el usuario
   let userAddress: any = null;
@@ -1392,101 +1394,105 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   await user.save();
 
   // Crear Subscription definitiva basada en la pre-suscripción y consumirla (controlado por P_ENABLE_SUBSCRIPTION_ON_REGISTER)
-  if (env.ENABLE_SUBSCRIPTION_ON_REGISTER) {
-    try {
-      if (!preSubscription) {
-        throw new Error("Pre-suscripción no encontrada");
-      }
+  // #pending_to_restore, process deleted due to business decision
+  // if (env.ENABLE_SUBSCRIPTION_ON_REGISTER) {
+  //   try {
+  //     if (!preSubscription) {
+  //       throw new Error("Pre-suscripción no encontrada");
+  //     }
 
-      const subscriptionCount = await Subscription.countDocuments();
-      const finalSubscription = await Subscription.create({
-        user: user._id,
-        plan: "monthly", // Plan por defecto
-        startDate: new Date(),
-        contractNumber: padNumber(subscriptionCount + 1, 8),
-        transactionId: preSubscription.transactionId,
-        transactionRate: preSubscription.transactionRate,
-        transactionAmount: preSubscription.transactionAmount,
-        active: true,
-      });
-      await finalSubscription.save();
+  //     const subscriptionCount = await Subscription.countDocuments();
+  //     const finalSubscription = await Subscription.create({
+  //       user: user._id,
+  //       plan: "monthly", // Plan por defecto
+  //       startDate: new Date(),
+  //       contractNumber: padNumber(subscriptionCount + 1, 8),
+  //       transactionId: preSubscription.transactionId,
+  //       transactionRate: preSubscription.transactionRate,
+  //       transactionAmount: preSubscription.transactionAmount,
+  //       active: true,
+  //     });
+  //     await finalSubscription.save();
 
-      // Consumir la pre-suscripción para evitar reutilización
-      const preSubscriptionId =
-        typeof preSubscription._id === "string"
-          ? preSubscription._id
-          : (preSubscription._id as any).toString();
-      await consumePreSubscription(preSubscriptionId);
+  //     // Consumir la pre-suscripción para evitar reutilización
+  //     const preSubscriptionId =
+  //       typeof preSubscription._id === "string"
+  //         ? preSubscription._id
+  //         : (preSubscription._id as any).toString();
+  //     await consumePreSubscription(preSubscriptionId);
 
-      // Registrar operación de membresía en LA Sistemas y crear SubscriptionPayment (cobro ya hecho en pre-register)
-      const today = new Date();
-      const day = String(today.getDate()).padStart(2, "0");
-      const month = String(today.getMonth() + 1).padStart(2, "0");
-      const year = today.getFullYear();
-      const iniDate = `${day}/${month}/${year}`;
+  //     // Registrar operación de membresía en LA Sistemas y crear SubscriptionPayment (cobro ya hecho en pre-register)
+  //     const today = new Date();
+  //     const day = String(today.getDate()).padStart(2, "0");
+  //     const month = String(today.getMonth() + 1).padStart(2, "0");
+  //     const year = today.getFullYear();
+  //     const iniDate = `${day}/${month}/${year}`;
 
-      const identificationTypeRif =
-        user.identificationType ??
-        diditSession?.id_verification?.document_number?.[0] ??
-        "V";
-      const insertOperationBody = {
-        Rif: identificationTypeRif + (user.document ?? ""),
-        Contrap: "",
-        Validagraba: "G",
-        Producto: "MB",
-        Moneda: "1",
-        Monefec: "0",
-        Comi: "",
-        Inicio: iniDate,
-        Venc: iniDate,
-        Cuotas: "0",
-        Monto: finalSubscription.transactionAmount?.toString() ?? "0.99",
-        Tpcambio: finalSubscription.transactionRate?.toString() ?? "1",
-        Tasa: "0",
-        Fpago: "2",
-        Refer: "MEMBRESIA",
-        Tpint: "V",
-        Numesa: "1",
-        Nuveh: "1",
-        Nucorre: "2",
-        Tipomm: "0",
-        Copaso: "",
-      };
+  //     const identificationTypeRif =
+  //       user.identificationType ??
+  //       diditSession?.id_verification?.document_number?.[0] ??
+  //       "V";
+  //     const insertOperationBody = {
+  //       Rif: identificationTypeRif + (user.document ?? ""),
+  //       Contrap: "",
+  //       Validagraba: "G",
+  //       Producto: "MB",
+  //       Moneda: "1",
+  //       Monefec: "0",
+  //       Comi: "",
+  //       Inicio: iniDate,
+  //       Venc: iniDate,
+  //       Cuotas: "0",
+  //       Monto: finalSubscription.transactionAmount?.toString() ?? "0.99",
+  //       Tpcambio: finalSubscription.transactionRate?.toString() ?? "1",
+  //       Tasa: "0",
+  //       Fpago: "2",
+  //       Refer: "MEMBRESIA",
+  //       Tpint: "V",
+  //       Numesa: "1",
+  //       Nuveh: "1",
+  //       Nucorre: "2",
+  //       Tipomm: "0",
+  //       Copaso: "",
+  //     };
 
-      const laInsertResp = await InsertOperation(insertOperationBody);
-      if (!laInsertResp.success) {
-        console.error(
-          "No se pudo registrar la operación de membresía en LA Sistemas:",
-          laInsertResp.message,
-        );
-      } else {
-        loggers.operation(
-          `Operación de membresía registrada en LA Sistemas: ${JSON.stringify(laInsertResp)}`,
-        );
-      }
+  //     const laInsertResp = await InsertOperation(insertOperationBody);
+  //     if (!laInsertResp.success) {
+  //       console.error(
+  //         "No se pudo registrar la operación de membresía en LA Sistemas:",
+  //         laInsertResp.message,
+  //       );
+  //     } else {
+  //       loggers.operation(
+  //         `Operación de membresía registrada en LA Sistemas: ${JSON.stringify(laInsertResp)}`,
+  //       );
+  //     }
 
-      const amountVef =
-        (finalSubscription.transactionAmount ?? 0.99) *
-        (finalSubscription.transactionRate ?? 1);
-      const subscriptionPayment = await SubscriptionPayment.create({
-        user: user._id,
-        amountVef: parseFloat(amountVef.toFixed(2)),
-        amountUsd: finalSubscription.transactionAmount ?? 0.99,
-        rate: finalSubscription.transactionRate ?? 1,
-        paymentDate: new Date(),
-        status: "paid",
-        details: "Membresia",
-        receiptId: finalSubscription.transactionId,
-      });
-      await subscriptionPayment.save();
-    } catch (error) {
-      console.error(
-        "Error al crear la suscripción definitiva durante el registro:",
-        error,
-      );
-      // No fallar el registro si hay error al crear la suscripción, pero loguear el error
-    }
-  }
+  //     const amountVef =
+  //       (finalSubscription.transactionAmount ?? 0.99) *
+  //       (finalSubscription.transactionRate ?? 1);
+  //     const subscriptionPayment = await SubscriptionPayment.create({
+  //       user: user._id,
+  //       amountVef: parseFloat(amountVef.toFixed(2)),
+  //       amountUsd: finalSubscription.transactionAmount ?? 0.99,
+  //       rate: finalSubscription.transactionRate ?? 1,
+  //       paymentDate: new Date(),
+  //       status: "paid",
+  //       details: "Membresia",
+  //       receiptId: finalSubscription.transactionId,
+  //     });
+  //     await subscriptionPayment.save();
+  //   } catch (error) {
+  //     loggers.operation(
+  //       `Error al crear la suscripción definitiva durante el registro: ${JSON.stringify(error)}`,
+  //     );
+  //     console.error(
+  //       "Error al crear la suscripción definitiva durante el registro:",
+  //       error,
+  //     );
+  //     // No fallar el registro si hay error al crear la suscripción, pero loguear el error
+  //   }
+  // }
 
   return res.status(200).json({
     success: true,
