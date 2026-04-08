@@ -594,21 +594,21 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
       ? stateParam.trim().toLowerCase()
       : null;
 
-  if (
-    state !== null &&
-    !VALID_STATES.includes(state as (typeof VALID_STATES)[number])
-  ) {
+  if (state !== null && !VALID_STATES.includes(state as any)) {
     return res.status(400).json({
       success: false,
       message: `state must be one of: ${VALID_STATES.join(", ")} or null`,
     });
   }
 
+  // 1. Fetch Users
   const results = await User.find({ status: { $ne: Status.Deleted } }).select(
     "_id name lastname email document status identificationType image maxAmount",
   );
 
   const userIds = results.map((u) => u._id);
+
+  // 2. Fetch Unpaid Payments for these users
   const unpaidPayments = await OperationPayment.find({
     user: { $in: userIds },
     status: { $in: ["pending", "overdue", "inArrears"] },
@@ -616,20 +616,31 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
     .select("user date amountUsd amountUsdTotal")
     .lean();
 
+  // 3. Process totals using Maps (More efficient than multiple DB calls)
   const creditoUsadoByUser = new Map<string, number>();
+  let totalPendingAmountAcrossAllUsers = 0;
+
   for (const p of unpaidPayments) {
     const userId = String(p.user);
-    const amount = p.amountUsd ?? p.amountUsdTotal ?? 0;
+    // Logic: Use amountUsdTotal if available, else amountUsd
+    const amount = p.amountUsd ?? 0;
+
+    // Add to specific user map
     creditoUsadoByUser.set(
       userId,
       (creditoUsadoByUser.get(userId) ?? 0) + amount,
     );
+
+    // Add to global counter
+    totalPendingAmountAcrossAllUsers += amount;
   }
 
+  // 4. Map the User Data
   let resultData = results.map((user) => {
     const creditoUsado = creditoUsadoByUser.get(String(user._id)) ?? 0;
     const maxAmount = user.maxAmount ?? 0;
     const creditoDisponible = Math.max(0, maxAmount - creditoUsado);
+
     return {
       _id: user._id,
       name: user.name,
@@ -642,10 +653,11 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
       image: user.image,
       maxAmount,
       creditoDisponible,
-      creditoUsado,
+      creditoUsado, // This is your "amountPending" per user
     };
   });
 
+  // 5. Apply State Filtering (Vigente, Moroso, etc.)
   if (state !== null) {
     const VENEZUELA_TZ = "America/Caracas";
     const dayMs = 24 * 60 * 60 * 1000;
@@ -667,6 +679,7 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
         `${dueDateVEStr}T00:00:00`,
         VENEZUELA_TZ,
       );
+
       const atraso = Math.floor(
         (startOfTodayVE.getTime() - startOfDueDateVE.getTime()) / dayMs,
       );
@@ -676,7 +689,7 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
       }
     }
 
-    const getUserState = (userId: string): (typeof VALID_STATES)[number] => {
+    const getUserState = (userId: string) => {
       const atraso = maxAtrasoByUser.get(userId);
       if (atraso === undefined) return "inactivo";
       if (atraso > 2) return "moroso";
@@ -689,13 +702,14 @@ export const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
     );
   }
 
+  // 6. Return response with global total
   return res.status(200).json({
     success: true,
     message: "Users retrieved successfully",
+    totalPendingAmount: Number(totalPendingAmountAcrossAllUsers.toFixed(2)),
     data: resultData,
   });
 });
-
 export const getList = asyncHandler(async (req: Request, res: Response) => {
   const results = await User.find(
     { status: Status.Active },

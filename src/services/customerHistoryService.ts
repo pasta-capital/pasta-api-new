@@ -269,10 +269,7 @@ export async function getArrearsHistoryStatistics(take: number) {
     .lean();
 
   // monthKey -> userId -> count of morose installments in that month
-  const arrearsByMonthUser = new Map<
-    string,
-    Map<string, number>
-  >();
+  const arrearsByMonthUser = new Map<string, Map<string, number>>();
   // monthKey -> cuota _ids morosas en ese mes (para certificar)
   const cuotaIdsByMonth = new Map<string, string[]>();
 
@@ -799,7 +796,7 @@ export async function getLiquidatedAmountsIndicator(currency: "USD" | "VEF") {
     $or: [{ paidAt: null }, { paidAt: { $exists: false } }],
   };
 
-  // Liquidados vigentes: status=pending, paidAt null, date >= hoy
+  // 1. Liquidados vigentes
   const vigentesResult = await OperationPayment.aggregate([
     {
       $match: {
@@ -812,13 +809,12 @@ export async function getLiquidatedAmountsIndicator(currency: "USD" | "VEF") {
       $group: {
         _id: null,
         amountUsd: { $sum: { $ifNull: ["$amountUsdTotal", "$amountUsd"] } },
-        amountVef: { $sum: "$amountVef" },
         count: { $sum: 1 },
       },
     },
   ]);
 
-  // Liquidados vencidos: overdue OR (pending, date < hoy, date >= hoy-2), paidAt null
+  // 2. Liquidados vencidos
   const vencidosResult = await OperationPayment.aggregate([
     {
       $match: {
@@ -836,13 +832,12 @@ export async function getLiquidatedAmountsIndicator(currency: "USD" | "VEF") {
       $group: {
         _id: null,
         amountUsd: { $sum: { $ifNull: ["$amountUsdTotal", "$amountUsd"] } },
-        amountVef: { $sum: "$amountVef" },
         count: { $sum: 1 },
       },
     },
   ]);
 
-  // Liquidados morosos: inArrears OR (pending, date < hoy-2), paidAt null
+  // 3. Liquidados morosos
   const morososResult = await OperationPayment.aggregate([
     {
       $match: {
@@ -860,38 +855,31 @@ export async function getLiquidatedAmountsIndicator(currency: "USD" | "VEF") {
       $group: {
         _id: null,
         amountUsd: { $sum: { $ifNull: ["$amountUsdTotal", "$amountUsd"] } },
-        amountVef: { $sum: "$amountVef" },
         count: { $sum: 1 },
       },
     },
   ]);
 
-  const toAmount = (row: any, usdKey: string, vefKey: string) => {
-    if (!row) return 0;
-    if (currency === "USD") return row[usdKey] ?? 0;
-    const vef = row[vefKey];
-    if (vef != null && vef > 0) return vef;
-    return (row[usdKey] ?? 0) * rateUsd;
+  /**
+   * Helper to calculate amount based on selected currency
+   * Now strictly uses rateUsd for VEF conversion
+   */
+  const toAmount = (row: any) => {
+    if (!row || !row.amountUsd) return 0;
+
+    if (currency === "USD") {
+      return row.amountUsd;
+    }
+
+    // For VEF, we multiply the USD sum by the current rate
+    return row.amountUsd * rateUsd;
   };
 
-  const liquidadosVigentes = toAmount(
-    vigentesResult[0],
-    "amountUsd",
-    "amountVef",
-  );
-  const liquidadosVencidos = toAmount(
-    vencidosResult[0],
-    "amountUsd",
-    "amountVef",
-  );
-  const liquidadosMorosos = toAmount(
-    morososResult[0],
-    "amountUsd",
-    "amountVef",
-  );
+  const liquidadosVigentes = toAmount(vigentesResult[0]);
+  const liquidadosVencidos = toAmount(vencidosResult[0]);
+  const liquidadosMorosos = toAmount(morososResult[0]);
 
-  const total =
-    liquidadosVigentes + liquidadosVencidos + liquidadosMorosos;
+  const total = liquidadosVigentes + liquidadosVencidos + liquidadosMorosos;
 
   return {
     liquidadosVigentes: Number(liquidadosVigentes.toFixed(2)),

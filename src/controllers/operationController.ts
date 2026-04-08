@@ -1856,93 +1856,53 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
       laCopaso: payment,
     });
 
-    if (checkOperationPayment) {
-      if (checkOperationPayment.status === "paid") {
-        loggers.operation("Pay Debt - Cuota ya pagada", {
-          action: "pay_debt",
-          step: "cuota_already_paid",
-          userId: req.user!.id,
-          copasocuota: payment,
-        });
-        return res.status(400).json({
-          success: false,
-          message: "Cuota ya pagada",
-          code: "already_paid",
-        });
-      }
-
-      const amountVef = parseFloat(
-        (checkOperationPayment.amountUsdTotal * rateUsd).toFixed(2),
-      );
-
-      checkOperationPayment.amountVef = amountVef;
-      checkOperationPayment.rate = rateUsd;
-      await checkOperationPayment.save();
-
-      operationPayments.push(checkOperationPayment);
-      continue;
-    }
-
-    const { cuota, cuotaNumber } = buscarCuotaPorCopasocuota(
-      deudas.data,
-      payment,
-    );
-    if (!cuota) {
-      loggers.operation("Pay Debt - Cuota no encontrada", {
+    // Check if the payment record exists in our DB (it should have been synced)
+    if (!checkOperationPayment) {
+      loggers.operation("Pay Debt - Cuota no sincronizada", {
         action: "pay_debt",
-        step: "cuota_not_found",
+        step: "cuota_not_synced",
         userId: req.user!.id,
         copasocuota: payment,
       });
       return res.status(400).json({
         success: false,
-        message: "Cuota no encontrada",
-        code: "not_found",
+        message: "Cuota no encontrada en el sistema. Falla en sincronizacion.",
+        code: "not_synced",
       });
     }
 
-    const amountUsd = parseFloat(
-      cuota.Montobruto.replace(/[^\d.-]/g, "").trim(),
-    );
-    const amountUsdTotal = parseFloat(
-      cuota.Montocuota.replace(/[^\d.-]/g, "").trim(),
-    );
-    const interest = parseFloat(cuota.Interes.replace(/[^\d.-]/g, "").trim());
-    const interestRate = parseFloat(
-      cuota.Tasacuota.replace(/[^\d.-]/g, "").trim(),
-    );
-    const amountVef = parseFloat((amountUsdTotal * rateUsd).toFixed(2));
+    // Check if it's already paid
+    if (checkOperationPayment.status === "paid") {
+      loggers.operation("Pay Debt - Cuota ya pagada", {
+        action: "pay_debt",
+        step: "cuota_already_paid",
+        userId: req.user!.id,
+        copasocuota: payment,
+      });
+      return res.status(400).json({
+        success: false,
+        message: "Cuota ya pagada",
+        code: "already_paid",
+      });
+    }
 
-    const date = (() => {
-      // Parse string "dd/MM/yyyy" to Date
-      const [day, month, year] = cuota.Fechacuota.split("/").map(Number);
-      return new Date(year, month - 1, day);
-    })();
+    // UPDATE LOGIC: Prepare the existing record for payment
+    const { cuotaNumber } = buscarCuotaPorCopasocuota(deudas.data, payment);
 
-    const operationPayment = new OperationPayment({
-      user: req.user!.id,
-      amountUsd: amountUsd,
-      amountUsdTotal: amountUsdTotal,
-      interest: interest,
-      interestRate: interestRate,
-      amountVef: amountVef,
-      rate: rateUsd,
-      status: getStatus(cuota.Status),
-      date: date,
-      paidAt: null,
-      points:
-        getStatus(cuota.Status) === "pending"
-          ? (amountUsdTotal ?? amountUsd) *
-            (getDaysDifference(date, new Date()) >= 5 ? 2 : 1)
-          : 0,
-      expireAt: expireAt,
-      laCuota: cuotaNumber,
-      laCopaso: cuota.Copasocuota,
-    });
-    const savedOperationPayment = await operationPayment.save();
-    operationPayments.push(savedOperationPayment);
+    const amountVef = parseFloat(
+      (checkOperationPayment.amountUsdTotal * rateUsd).toFixed(2),
+    );
+
+    // Fill in missing fields and update rate
+    checkOperationPayment.amountVef = amountVef;
+    checkOperationPayment.rate = rateUsd;
+    checkOperationPayment.laCuota = cuotaNumber?.toString() || "";
+
+    await checkOperationPayment.save();
+    operationPayments.push(checkOperationPayment);
   }
 
+  // Calculate totals for the Payment master record
   const amountUsd = parseFloat(
     operationPayments
       .reduce(
@@ -1955,13 +1915,14 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
   const amountVef = parseFloat(
     operationPayments
       .reduce(
-        (acc: number, operationPayment) => acc + operationPayment.amountVef,
+        (acc: number, operationPayment) =>
+          acc + (operationPayment.amountVef || 0),
         0,
       )
       .toFixed(2),
   );
 
-  const payment = new Payment({
+  const paymentMaster = new Payment({
     user: req.user!.id,
     operationPayments: operationPayments.map(
       (operationPayment) => operationPayment._id,
@@ -1971,12 +1932,13 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
     amountVef: amountVef,
     rate: rateUsd,
     points: operationPayments.reduce(
-      (acc: number, operationPayment) => acc + operationPayment.points,
+      (acc: number, operationPayment) => acc + (operationPayment.points || 0),
       0,
     ),
     expireAt,
   });
-  const savedPayment = await payment.save();
+
+  const savedPayment = await paymentMaster.save();
 
   loggers.operation("Pay Debt - Payment creado exitosamente", {
     action: "pay_debt",
@@ -2008,7 +1970,6 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
     data: respData,
   });
 });
-
 export const payDebtConfirmation = asyncHandler(
   async (req: Request, res: Response) => {
     try {
