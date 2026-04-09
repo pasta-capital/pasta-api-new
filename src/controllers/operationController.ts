@@ -856,7 +856,7 @@ export const confirmOperation = asyncHandler(
       Nunota: reference,
       Refer: transaction.data.ref_ibp ?? reference,
       Nurefer: "",
-      Nucorre: 1,
+      Nucorre: "1",
       Fpago: 3,
       Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
       Tpcambio: "1",

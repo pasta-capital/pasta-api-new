@@ -9,7 +9,7 @@ export interface InsertPaymentData {
   Nunota: string;
   Refer: string;
   Nurefer: string;
-  Nucorre: number;
+  Nucorre: number | string;
   Fpago: number;
   Monto: string;
   Tpcambio: string;
