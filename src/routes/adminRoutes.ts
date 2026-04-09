@@ -19,6 +19,7 @@ import {
 } from "../controllers/adminController";
 import { authorizeModules, verifyToken } from "../middlewares/authJwt";
 import { fileURLToPath } from "url";
+import * as env from "../config/env.config";
 
 const routes = express.Router();
 
@@ -30,11 +31,13 @@ const routes = express.Router();
  */
 
 // Configuración de almacenamiento
+// 1. Updated Storage with Absolute Path
 const storage = multer.diskStorage({
   destination: (req: any, file: any, cb: any) => {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    cb(null, path.join(__dirname, "../public/profile-pics"));
+    // This points to /app/pasta/pasta-dashboard-new/cdn/users
+    const dest =
+      env.CDN_USERS || path.join(process.cwd(), "public/profile-pics");
+    cb(null, dest);
   },
   filename: (req: any, file: any, cb: any) => {
     const ext = path.extname(file.originalname);
@@ -42,9 +45,9 @@ const storage = multer.diskStorage({
   },
 });
 
-// Filtros y límites
+// 2. Updated Upload Middleware
 const upload = multer({
-  storage,
+  storage, // This now points to your updated storage above
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req: any, file: any, cb: any) => {
     if (/^image\/(jpeg|png|gif)$/.test(file.mimetype)) {
