@@ -288,6 +288,13 @@ export const SMTP_FROM = __env__("P_SMTP_FROM", true);
 export const API_URL = __env__("P_API_URL", true);
 
 /**
+ * CDN url
+ *
+ * @type {string}
+ */
+export const CDN_URL = __env__("P_CDN_URL", true);
+
+/**
  * Twilio Account SID
  *
  * @type {string}
@@ -398,31 +405,107 @@ export const AGILE_CHECK_API_VALIDATE_CERT = __env__(
 );
 
 // Banesco - ya no integrado en el sistema (variables opcionales para evitar errores al cargar)
-export const BANESCO_VALIDATE_CERT = __env__("P_BANESCO_VALIDATE_CERT", false, "false");
-export const BANESCO_CONSULTA_API_SSO = __env__("P_BANESCO_CONSULTA_API_SSO", false);
-export const BANESCO_CONSULTA_API_CLIENT_ID = __env__("P_BANESCO_CONSULTA_API_CLIENT_ID", false);
-export const BANESCO_CONSULTA_API_CLIENT_SECRET = __env__("P_BANESCO_CONSULTA_API_CLIENT_SECRET", false);
-export const BANESCO_CONSULTA_API_USER = __env__("P_BANESCO_CONSULTA_API_USER", false);
-export const BANESCO_CONSULTA_API_PASSWORD = __env__("P_BANESCO_CONSULTA_API_PASSWORD", false);
-export const BANESCO_CONSULTA_API_URL = __env__("P_BANESCO_CONSULTA_API_URL", false);
-export const BANESCO_VUELTO_API_SSO = __env__("P_BANESCO_VUELTO_API_SSO", false);
-export const BANESCO_VUELTO_API_CLIENT_ID = __env__("P_BANESCO_VUELTO_API_CLIENT_ID", false);
-export const BANESCO_VUELTO_API_CLIENT_SECRET = __env__("P_BANESCO_VUELTO_API_CLIENT_SECRET", false);
-export const BANESCO_VUELTO_API_USER = __env__("P_BANESCO_VUELTO_API_USER", false);
-export const BANESCO_VUELTO_API_PASSWORD = __env__("P_BANESCO_VUELTO_API_PASSWORD", false);
-export const BANESCO_VUELTO_API_URL = __env__("P_BANESCO_VUELTO_API_URL", false);
-export const BANESCO_CARGO_EN_CUENTA_API_PROXY_URL = __env__("P_BANESCO_CARGO_EN_CUENTA_API_PROXY_URL", false);
-export const BANESCO_CARGO_EN_CUENTA_API_RESPONSE_TYPE = __env__("P_BANESCO_CARGO_EN_CUENTA_API_RESPONSE_TYPE", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CALLBACK_URL = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CALLBACK_URL", false);
-export const BANESCO_CARGO_EN_CUENTA_API_SCOPE = __env__("P_BANESCO_CARGO_EN_CUENTA_API_SCOPE", false);
-export const BANESCO_CARGO_EN_CUENTA_API_SSO = __env__("P_BANESCO_CARGO_EN_CUENTA_API_SSO", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CLIENT_ID = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CLIENT_ID", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CLIENT_SECRET = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CLIENT_SECRET", false);
-export const BANESCO_CARGO_EN_CUENTA_API_USER = __env__("P_BANESCO_CARGO_EN_CUENTA_API_USER", false);
-export const BANESCO_CARGO_EN_CUENTA_API_PASSWORD = __env__("P_BANESCO_CARGO_EN_CUENTA_API_PASSWORD", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_CUENTA_URL = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_CUENTA_URL", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CARGO_EN_CUENTA_PAGO_URL = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CARGO_EN_CUENTA_PAGO_URL", false);
-export const BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_TRANSACCION_URL = __env__("P_BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_TRANSACCION_URL", false);
+export const BANESCO_VALIDATE_CERT = __env__(
+  "P_BANESCO_VALIDATE_CERT",
+  false,
+  "false",
+);
+export const BANESCO_CONSULTA_API_SSO = __env__(
+  "P_BANESCO_CONSULTA_API_SSO",
+  false,
+);
+export const BANESCO_CONSULTA_API_CLIENT_ID = __env__(
+  "P_BANESCO_CONSULTA_API_CLIENT_ID",
+  false,
+);
+export const BANESCO_CONSULTA_API_CLIENT_SECRET = __env__(
+  "P_BANESCO_CONSULTA_API_CLIENT_SECRET",
+  false,
+);
+export const BANESCO_CONSULTA_API_USER = __env__(
+  "P_BANESCO_CONSULTA_API_USER",
+  false,
+);
+export const BANESCO_CONSULTA_API_PASSWORD = __env__(
+  "P_BANESCO_CONSULTA_API_PASSWORD",
+  false,
+);
+export const BANESCO_CONSULTA_API_URL = __env__(
+  "P_BANESCO_CONSULTA_API_URL",
+  false,
+);
+export const BANESCO_VUELTO_API_SSO = __env__(
+  "P_BANESCO_VUELTO_API_SSO",
+  false,
+);
+export const BANESCO_VUELTO_API_CLIENT_ID = __env__(
+  "P_BANESCO_VUELTO_API_CLIENT_ID",
+  false,
+);
+export const BANESCO_VUELTO_API_CLIENT_SECRET = __env__(
+  "P_BANESCO_VUELTO_API_CLIENT_SECRET",
+  false,
+);
+export const BANESCO_VUELTO_API_USER = __env__(
+  "P_BANESCO_VUELTO_API_USER",
+  false,
+);
+export const BANESCO_VUELTO_API_PASSWORD = __env__(
+  "P_BANESCO_VUELTO_API_PASSWORD",
+  false,
+);
+export const BANESCO_VUELTO_API_URL = __env__(
+  "P_BANESCO_VUELTO_API_URL",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_PROXY_URL = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_PROXY_URL",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_RESPONSE_TYPE = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_RESPONSE_TYPE",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CALLBACK_URL = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CALLBACK_URL",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_SCOPE = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_SCOPE",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_SSO = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_SSO",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CLIENT_ID = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CLIENT_ID",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CLIENT_SECRET = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CLIENT_SECRET",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_USER = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_USER",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_PASSWORD = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_PASSWORD",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_CUENTA_URL = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_CUENTA_URL",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CARGO_EN_CUENTA_PAGO_URL = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CARGO_EN_CUENTA_PAGO_URL",
+  false,
+);
+export const BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_TRANSACCION_URL = __env__(
+  "P_BANESCO_CARGO_EN_CUENTA_API_CONSULTA_DE_TRANSACCION_URL",
+  false,
+);
 
 export const API_WEBSITE_URL = __env__("P_API_WEBSITE_URL", true);
 

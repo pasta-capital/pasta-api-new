@@ -377,7 +377,7 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
       imageFileName = imageFileName.split("\\").pop() as string;
     else if (imageFileName.includes("/"))
       imageFileName = imageFileName.split("/").pop() as string;
-    userData.profileImagePath = `${env.API_URL}/cdn/users/${imageFileName}`;
+    userData.profileImagePath = `${env.CDN_URL}/cdn/users/${imageFileName}`;
   } else {
     userData.profileImagePath = null;
   }
