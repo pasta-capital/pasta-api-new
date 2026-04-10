@@ -42,15 +42,11 @@ export async function downloadImage(
       responseType: "stream",
     });
 
-    loggers.info("Inside downloadImage - response  ", response);
-
     const contentType = response.headers["content-type"];
     const ext = getExtensionFromMime(contentType);
     if (!ext) {
       throw new Error(`Tipo MIME no soportado o no reconocido: ${contentType}`);
     }
-
-    loggers.info("Inside downloadImage - ext  ", ext);
 
     // Construimos el nombre final del archivo con la extensión.
     const finalFilename = `${path}.${ext}`;
@@ -68,8 +64,8 @@ export async function downloadImage(
     // Retornamos el nombre del archivo completo
     if (finalFilename.includes("\\")) return finalFilename.split("\\").pop();
     else return finalFilename.split("/").pop();
-  } catch (error) {
-    loggers.info("Download image error in downloadImage(): ", error);
+  } catch (error: any) {
+    loggers.info("Download image error in downloadImage(): ", error?.message);
     throw error;
   }
 }
