@@ -1379,12 +1379,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         {
           documentType: "1",
           image: fileNameDocument!,
-          dateOfIssue: diditSession.id_verification?.date_of_issue,
-          expirationDate: diditSession.id_verification?.expiration_date,
+          dateOfIssue: diditSession.id_verification[0]?.date_of_issue,
+          expirationDate: diditSession.id_verification[0]?.expiration_date,
         },
       ];
       user.identificationType =
-        diditSession.id_verification?.document_number?.[0];
+        diditSession.id_verification[0]?.document_number?.[0];
       await user.save();
     } catch (error) {
       console.log(error);
