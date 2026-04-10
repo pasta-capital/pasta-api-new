@@ -715,7 +715,7 @@ export const confirmOperation = asyncHandler(
         },
       },
     });
-
+    /**CREDIT BEGIN */
     const creditTransaction = await credit(sypagoCreditBody);
 
     loggers.operation("Confirm Operation - Respuesta crédito Sypago", {
@@ -757,6 +757,7 @@ export const confirmOperation = asyncHandler(
       },
     );
 
+    /**GET SYPAGO TRANSACTION RESULT */
     const transaction = await getTransactionResult(
       creditTransaction.data.transaction_id,
     );
@@ -809,6 +810,7 @@ export const confirmOperation = asyncHandler(
         error: getStatusDescription(transaction.data.status),
       });
     }
+    /**CREDIT END */
 
     const day = String(operation.createdAt.getDate()).padStart(2, "0");
     const month = String(operation.createdAt.getMonth() + 1).padStart(2, "0");
@@ -829,7 +831,8 @@ export const confirmOperation = asyncHandler(
       Tpcambio: operation.rate.toString(),
       Tasa: operation.annualCommission.toString(),
       Fpago: "1",
-      Refer: transaction.data.ref_ibp ?? reference,
+      // Refer: transaction.data.ref_ibp ?? reference,
+      Refer: "",
       Tpint: "V",
       Numesa: "1",
       Nuveh: "1",
