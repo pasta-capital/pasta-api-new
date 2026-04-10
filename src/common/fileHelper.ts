@@ -33,6 +33,9 @@ export async function downloadImage(
     throw new Error("Invalid URL provided");
   }
 
+  loggers.info("Inside downloadImage - url  ", url);
+  loggers.info("Inside downloadImage - path  ", path);
+
   try {
     const response = await axios({
       url,
@@ -40,14 +43,20 @@ export async function downloadImage(
       responseType: "stream",
     });
 
+    loggers.info("Inside downloadImage - response  ", response);
+
     const contentType = response.headers["content-type"];
     const ext = getExtensionFromMime(contentType);
     if (!ext) {
       throw new Error(`Tipo MIME no soportado o no reconocido: ${contentType}`);
     }
 
+    loggers.info("Inside downloadImage - ext  ", ext);
+
     // Construimos el nombre final del archivo con la extensión.
     const finalFilename = `${path}.${ext}`;
+
+    loggers.info("Inside downloadImage - finalFilename  ", finalFilename);
 
     // Se espera hasta que el archivo sea completamente escrito.
     await new Promise((resolve, reject) => {
