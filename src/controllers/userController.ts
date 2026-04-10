@@ -1356,8 +1356,9 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
     try {
       const filename = `${user._id}_${Date.now()}`;
       loggers.info("File name CDN ", filename);
+      loggers.info("File name CDN ", diditSession);
       loggers.info("File name CDN ", diditSession.face_match);
-      loggers.info("File name CDN ", diditSession.diditSession.id_verification);
+      loggers.info("File name CDN ", diditSession.id_verification);
 
       const fileNameImage = await downloadImage(
         diditSession.face_match.target_image,
