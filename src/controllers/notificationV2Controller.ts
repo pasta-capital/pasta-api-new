@@ -327,7 +327,7 @@ export async function getMyNotifications(req: Request, res: Response) {
   const user = req.user;
   const page = Math.max(parseInt(String(req.query.page || 1), 10), 1);
   const size = Math.max(parseInt(String(req.query.size || 10), 10), 1);
-  const status = String(req.query.status || "").trim();
+  const status = String(req.query.status || "sent").trim();
   const from = req.query.from ? new Date(String(req.query.from)) : null;
   const to = req.query.to ? new Date(String(req.query.to)) : null;
   const infoType = String(req.query.infoType || "").trim();
