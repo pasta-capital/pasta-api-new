@@ -1355,13 +1355,19 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   if (body.isVerified) {
     try {
       const filename = `${user._id}_${Date.now()}`;
+      loggers.info("File name CDN ", filename);
       const fileNameImage = await downloadImage(
         diditSession.face_match.target_image,
         path.join(env.CDN_USERS, filename),
       );
+      loggers.info("After downloadImage - fileNameImage  ", fileNameImage);
       const fileNameDocument = await downloadImage(
         diditSession.id_verification.front_image,
         path.join(env.CDN_DOCUMENTS, `1_${filename}`),
+      );
+      loggers.info(
+        "After downloadImage - fileNameDocument  ",
+        fileNameDocument,
       );
 
       user.image = fileNameImage!;

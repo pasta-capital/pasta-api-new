@@ -1,5 +1,6 @@
 import axios from "axios";
 import fs from "fs";
+import * as loggers from "../common/logger";
 
 /**
  * Mapea un tipo MIME a su correspondiente extensión de archivo.
@@ -60,7 +61,7 @@ export async function downloadImage(
     if (finalFilename.includes("\\")) return finalFilename.split("\\").pop();
     else return finalFilename.split("/").pop();
   } catch (error) {
-    console.error("Error al descargar la imagen:", error);
+    loggers.info("Download image error in downloadImage(): ", error);
     throw error;
   }
 }
