@@ -1365,7 +1365,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       loggers.info("After downloadImage - fileNameImage  ", fileNameImage);
 
       const fileNameDocument = await downloadImage(
-        diditSession.id_verification[0].front_image,
+        diditSession.id_verifications[0].front_image,
         path.join(env.CDN_DOCUMENTS, `1_${filename}`),
       );
 
@@ -1379,12 +1379,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         {
           documentType: "1",
           image: fileNameDocument!,
-          dateOfIssue: diditSession.id_verification[0]?.date_of_issue,
-          expirationDate: diditSession.id_verification[0]?.expiration_date,
+          dateOfIssue: diditSession.id_verifications[0]?.date_of_issue,
+          expirationDate: diditSession.id_verifications[0]?.expiration_date,
         },
       ];
       user.identificationType =
-        diditSession.id_verification[0]?.document_number?.[0];
+        diditSession.id_verifications[0]?.document_number?.[0];
       await user.save();
     } catch (error) {
       console.log(error);
