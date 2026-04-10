@@ -1354,21 +1354,21 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 
   if (body.isVerified) {
     try {
-      const filename = `${user._id}_${Date.now()}`;
-      loggers.info("File name CDN ", filename);
       loggers.info("File name CDN ", diditSession);
-      loggers.info("File name CDN ", diditSession.face_match);
-      loggers.info("File name CDN ", diditSession.id_verification);
+      const filename = `${user._id}_${Date.now()}`;
 
       const fileNameImage = await downloadImage(
-        diditSession.face_match.target_image,
+        diditSession.face_match[0].target_image,
         path.join(env.CDN_USERS, filename),
       );
+
       loggers.info("After downloadImage - fileNameImage  ", fileNameImage);
+
       const fileNameDocument = await downloadImage(
-        diditSession.id_verification.front_image,
+        diditSession.id_verification[0].front_image,
         path.join(env.CDN_DOCUMENTS, `1_${filename}`),
       );
+
       loggers.info(
         "After downloadImage - fileNameDocument  ",
         fileNameDocument,
