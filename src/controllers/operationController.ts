@@ -2820,6 +2820,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
               rate: 1,
               status: 1,
               reference: 1,
+              icon: 1,
               user: {
                 _id: "$userData._id",
                 fullName: "$userData.fullName",
@@ -2842,6 +2843,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
       reference: operation.reference,
       createdAt: operation.createdAt,
       amount: operation.amountUsd,
+      icon: operation.icon,
       status: {
         id: operation.status,
         name: getOperationStatusName(operation.status),
