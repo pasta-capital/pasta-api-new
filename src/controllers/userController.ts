@@ -1355,12 +1355,14 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   if (body.isVerified) {
     try {
       const filename = `${user._id}_${Date.now()}`;
+
       const fileNameImage = await downloadImage(
-        diditSession.face_match.target_image,
+        diditSession.face_matches[0].target_image,
         path.join(env.CDN_USERS, filename),
       );
+
       const fileNameDocument = await downloadImage(
-        diditSession.id_verification.front_image,
+        diditSession.id_verifications[0].front_image,
         path.join(env.CDN_DOCUMENTS, `1_${filename}`),
       );
 
@@ -1369,12 +1371,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         {
           documentType: "1",
           image: fileNameDocument!,
-          dateOfIssue: diditSession.id_verification?.date_of_issue,
-          expirationDate: diditSession.id_verification?.expiration_date,
+          dateOfIssue: diditSession.id_verifications[0]?.date_of_issue,
+          expirationDate: diditSession.id_verifications[0]?.expiration_date,
         },
       ];
       user.identificationType =
-        diditSession.id_verification?.document_number?.[0];
+        diditSession.id_verifications[0]?.document_number?.[0];
       await user.save();
     } catch (error) {
       console.log(error);

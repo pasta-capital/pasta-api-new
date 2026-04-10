@@ -1,5 +1,6 @@
 import axios from "axios";
 import fs from "fs";
+import * as loggers from "../common/logger";
 
 /**
  * Mapea un tipo MIME a su correspondiente extensión de archivo.
@@ -48,6 +49,8 @@ export async function downloadImage(
     // Construimos el nombre final del archivo con la extensión.
     const finalFilename = `${path}.${ext}`;
 
+    loggers.info("Inside downloadImage - finalFilename  ", finalFilename);
+
     // Se espera hasta que el archivo sea completamente escrito.
     await new Promise((resolve, reject) => {
       response.data
@@ -59,8 +62,8 @@ export async function downloadImage(
     // Retornamos el nombre del archivo completo
     if (finalFilename.includes("\\")) return finalFilename.split("\\").pop();
     else return finalFilename.split("/").pop();
-  } catch (error) {
-    console.error("Error al descargar la imagen:", error);
+  } catch (error: any) {
+    loggers.info("Download image error in downloadImage(): ", error?.message);
     throw error;
   }
 }
