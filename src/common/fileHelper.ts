@@ -29,8 +29,6 @@ export async function downloadImage(
   url: string,
   path: string,
 ): Promise<string | undefined> {
-  loggers.info("Inside downloadImage - url  ", url);
-  loggers.info("Inside downloadImage - path  ", path);
   if (!url || typeof url !== "string") {
     throw new Error("Invalid URL provided");
   }
