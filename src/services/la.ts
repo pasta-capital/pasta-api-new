@@ -312,7 +312,7 @@ export const InsertOperation = async (data: InsertOperationData) => {
       !data.Monto ||
       !data.Tasa ||
       !data.Fpago ||
-      !data.Refer ||
+      // !data.Refer ||
       !data.Tpint
     ) {
       return {
