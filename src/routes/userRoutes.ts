@@ -274,7 +274,7 @@ routes.route("/login").post(login);
  *       400:
  *         description: Error de validación
  */
-routes.route("/register").post(register);
+routes.route("/register-TT").post(register); //TODO: CHANGE BACK ROUTE TO /register
 
 /**
  * @swagger
