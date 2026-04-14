@@ -274,7 +274,7 @@ routes.route("/login").post(login);
  *       400:
  *         description: Error de validación
  */
-routes.route("/register-TT").post(register);
+routes.route("/register").post(register);
 /**
  * @swagger
  * /users/forgot-password:
