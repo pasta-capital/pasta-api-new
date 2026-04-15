@@ -2064,7 +2064,7 @@ export const payDebtConfirmation = asyncHandler(
       let referenceSmall = body.reference;
       if (body.reference !== "000000" && env.TESTING) {
         if (body.paymentType === "mobile" || body.paymentType === "transfer") {
-          const phone = body.phone.includes("58")
+          const phone = body.phone.startsWith("58")
             ? body.phone
             : `58${body.phone.replace(/^0+/, "")}`;
 
