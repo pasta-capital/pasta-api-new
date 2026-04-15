@@ -2067,7 +2067,11 @@ export const payDebtConfirmation = asyncHandler(
           const phone = body.phone.startsWith("58")
             ? body.phone
             : `58${body.phone.replace(/^0+/, "")}`;
-
+          loggers.bancamiga("Pay Debt Confirmation - Phone AFTER CLEANUP", {
+            action: "pay_debt_confirmation",
+            step: "phone_cleanup",
+            phone: phone,
+          });
           const data = {
             phone,
             bank: body.bankCode,
