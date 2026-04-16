@@ -589,6 +589,20 @@ export const DAILY_PAYMENT_NOTIFICATIONS_MINUTE = __env__(
   "5",
 );
 
+/** BVC API URL
+ *  Dev  https://200.35.106.250/rs
+ */
+export const BVC_BASE_URL = __env__("P_BVC_BASE_URL", true);
+
+/** BVC AES Key */
+export const BVC_AES_KEY = __env__("P_BVC_AES_KEY", true);
+
+/** BVC AES IV */
+export const BVC_AES_IV = __env__("P_BVC_AES_IV", true);
+
+/** BVC API Key */
+export const BVC_API_KEY = __env__("P_BVC_API_KEY", true);
+
 /**
  * Cookie options.
  *
