@@ -1789,7 +1789,7 @@ export const getOperationPayments = asyncHandler(
 
 export const payDebt = asyncHandler(async (req: Request, res: Response) => {
   const { body } = req;
-
+  const manualRate = body.manualRate ? parseFloat(body.manualRate) : null;
   loggers.operation("Pay Debt - Inicio", {
     action: "pay_debt",
     step: "start",
@@ -1845,8 +1845,13 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const rate = await getRateS();
-  const rateUsd = parseFloat(rate!.usd.toFixed(2));
+  let rateUsd: number;
+  if (manualRate) {
+    rateUsd = parseFloat(manualRate.toFixed(2));
+  } else {
+    const rate = await getRateS();
+    rateUsd = parseFloat(rate!.usd.toFixed(2));
+  }
 
   const expireAt = new Date();
   expireAt.setSeconds(expireAt.getSeconds() + env.OPERATION_EXPIRE_AT);
