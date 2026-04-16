@@ -6,7 +6,7 @@ import {
 } from "../interfaces/bvc-methods/immediate";
 import { BankOperation } from "../models/operation";
 import { createReference } from "../utils/crypto";
-import { BANK_CODE } from "../config/env.config";
+import { BVC_BANK_ACCOUNT_CODE } from "../../config/env.config";
 import { getBankRef } from "../utils/helper";
 import { UniversalSchema } from "../interfaces/proxy-methods/request-bvc";
 /**
@@ -44,14 +44,14 @@ export const initiateImmediateDebit = async (rawData: any) => {
   }
 
   //Bank info
-  const bankId = await getBankRef(BANK_CODE);
+  const bankId = await getBankRef(BVC_BANK_ACCOUNT_CODE);
   // --- Mongo Search or create record ---
-  let txRecord: Awaited<ReturnType<typeof BankOperation.findOne>>;
+  let txRecord;
   let isRetry = false;
   try {
     txRecord = await BankOperation.create({
       bankId,
-      bankCode: BANK_CODE,
+      bankCode: BVC_BANK_ACCOUNT_CODE,
       internalRef: uniqueInternalRef,
       amount: parseFloat(bankPayload.monto), // Guardamos el número puro en DB
       status: "PENDING",
@@ -106,7 +106,7 @@ export const initiateImmediateDebit = async (rawData: any) => {
     const response = await postToBvc(
       BVC_ENDPOINTS.TRANSACTION.IMMEDIATE.DEBIT.DEBIT_REQUEST,
       payloadBank,
-      txRecord._id,
+      String(txRecord._id),
     );
 
     txRecord.status = response.statusCode === "C" ? "CARGADO" : "KO";
@@ -177,7 +177,7 @@ export const confirmDebitToken = async (rawData: any) => {
     const response = await postToBvc(
       BVC_ENDPOINTS.TRANSACTION.IMMEDIATE.DEBIT.TOKEN_REQUEST,
       payload,
-      txRecord._id,
+      String(txRecord._id),
     );
 
     if (response.statusCode === "C") {

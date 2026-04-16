@@ -5,7 +5,7 @@ import {
   BvcP2CValidateSchema,
 } from "../interfaces/bvc-methods/validations";
 import { BankOperation } from "../models/operation";
-import { BANK_CODE } from "../config/env.config";
+import { BVC_BANK_ACCOUNT_CODE } from "../../config/env.config";
 import { getBankRef } from "../utils/helper";
 import { UniversalSchema } from "../interfaces/proxy-methods/request-bvc";
 /**
@@ -29,13 +29,13 @@ export const validateP2C = async (rawData: any) => {
   const { data } = result;
   const internalRef = `VAL_P2C_${data.banco}_${data.referencia}_${data.monto.replace(".", "")}`;
 
-  const bankId = await getBankRef(BANK_CODE);
+  const bankId = await getBankRef(BVC_BANK_ACCOUNT_CODE);
   let txRecord: any;
 
   try {
     txRecord = await BankOperation.create({
       bankId,
-      bankCode: BANK_CODE,
+      bankCode: BVC_BANK_ACCOUNT_CODE,
       internalRef,
       status: "PENDING",
       operationType: "MOBILE_VALIDATE",

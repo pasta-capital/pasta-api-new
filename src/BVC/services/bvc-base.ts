@@ -6,7 +6,7 @@ import {
   BVC_AES_IV,
   BVC_BASE_URL,
   NODE_ENV,
-} from "../config/env.config";
+} from "../../config/env.config";
 import { bvcEncrypt, bvcDecrypt } from "../utils/crypto";
 import {
   BvcErrorResponseSchema,
@@ -24,7 +24,7 @@ const agent = new https.Agent({
 export const postToBvc = async <T = any>(
   endpoint: string,
   payload: any,
-  operationId?: Types.ObjectId,
+  operationId?: Types.ObjectId | string,
   timeoutMs?: number,
 ): Promise<T> => {
   const encryptedDt = bvcEncrypt(payload, BVC_AES_KEY, BVC_AES_IV);

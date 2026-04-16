@@ -4,7 +4,7 @@ import { BvcCreditRequestSchema } from "../interfaces/bvc-methods/immediate";
 import { UniversalSchema } from "../interfaces/proxy-methods/request-bvc";
 import { BankOperation } from "../models/operation";
 import { createReference } from "../utils/crypto";
-import { BANK_CODE } from "../config/env.config";
+import { BVC_BANK_ACCOUNT_CODE } from "../../config/env.config";
 import { getBankRef } from "../utils/helper";
 
 /**
@@ -36,13 +36,13 @@ export const executeImmediateCredit = async (rawData: any) => {
     transactionID,
   );
 
-  const bankId = await getBankRef(BANK_CODE);
+  const bankId = await getBankRef(BVC_BANK_ACCOUNT_CODE);
   //Revisar Duplicados
   let txRecord;
   try {
     txRecord = await BankOperation.create({
       bankId,
-      bankCode: BANK_CODE,
+      bankCode: BVC_BANK_ACCOUNT_CODE,
       internalRef: uniqueInternalRef,
       amount: parseFloat(bankPayload.monto),
       status: "PENDING",
@@ -88,7 +88,7 @@ export const executeImmediateCredit = async (rawData: any) => {
     const response = await postToBvc(
       BVC_ENDPOINTS.TRANSACTION.IMMEDIATE.CREDIT,
       { ...bankPayload },
-      txRecord._id,
+      String(txRecord._id),
     );
 
     /**

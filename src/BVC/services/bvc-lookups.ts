@@ -39,7 +39,7 @@ export const getSingularTx = async (rawData: any) => {
     const response = await postToBvc(
       BVC_ENDPOINTS.LOOKUP.SINGULAR_TX,
       validation.data,
-      txRecord?._id,
+      String(txRecord?._id),
     );
 
     txRecord.status = response.estatus.toUpperCase();

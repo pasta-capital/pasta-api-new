@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
-import { NODE_ENV } from "../config/env.config";
+import { NODE_ENV } from "../../config/env.config";
 
 export const bvcErrorHandler = (
   err: any,
@@ -47,7 +47,7 @@ export const bvcErrorHandler = (
 
     // Determinamos el status real que enviamos a la App Principal
     const finalHttpStatus = [200, 205, 400, 404].includes(bankStatus)
-      ? 200
+      ? 400
       : 500;
 
     console.warn(

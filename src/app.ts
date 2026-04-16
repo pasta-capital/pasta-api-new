@@ -33,6 +33,8 @@ import { errorHandler } from "./middlewares/errorHandler";
 import path from "path";
 import { fileURLToPath } from "url";
 import diditRoutes from "./routes/diditRoutes";
+import bvcRoutes from "./BVC/routes/v1/bvc-routes";
+import { bvcErrorHandler } from "./BVC/middleware/error-handler.middleware";
 
 const app = express();
 
@@ -96,6 +98,7 @@ app.use(`/${env.API_VERSION}/la`, laRoutes);
 app.use(`/${env.API_VERSION}/overdue-payments`, overduePaymentRoutes);
 app.use(`/${env.API_VERSION}/customer-history`, customerHistoryRoutes);
 app.use(`/${env.API_VERSION}/upcoming-payments`, upcomingPaymentRoutes);
+app.use(`/${env.API_VERSION}/bvc`, bvcRoutes, bvcErrorHandler);
 
 // New routes created by the PerCapital Tech Team
 app.use(`/${env.API_VERSION}/didit`, diditRoutes);

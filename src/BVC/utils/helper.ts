@@ -1,6 +1,6 @@
 import { BankLog } from "../models/logs";
-import { Bank } from "../models/banks";
-import { BANK_CODE } from "../config/env.config";
+import Bank from "../../models/Bank";
+import { BVC_BANK_ACCOUNT_CODE } from "../../config/env.config";
 import { Types } from "mongoose";
 /**
  * Busca el ID interno de la base de datos usando el código bancario oficial
@@ -18,7 +18,7 @@ export const getBankRef = async (bankCode: string) => {
     );
   }
 
-  bankIdCache.set(bankCode, bank._id);
+  bankIdCache.set(bankCode, bank._id as any);
   return bank._id;
 };
 
@@ -41,8 +41,8 @@ export const saveLog = async (
   requestPayload: any,
   responsePayload: any,
   statusCode: number,
-  operationId?: Types.ObjectId,
-  bankCode: string = BANK_CODE,
+  operationId?: Types.ObjectId | string,
+  bankCode: string = BVC_BANK_ACCOUNT_CODE,
 ) => {
   try {
     const bankId = await getBankRef(bankCode);

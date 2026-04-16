@@ -567,6 +567,7 @@ export const LA_SISTEMAS_API_URL = __env__("P_LA_SISTEMAS_API_URL", true);
 export const LA_SISTEMAS_API_KEY = __env__("P_LA_SISTEMAS_API_KEY", true);
 
 export const TESTING = __env__("P_TESTING", true);
+export const NODE_ENV = __env__("P_NODE_ENV", true);
 
 /**
  * Indica si se debe crear la suscripción definitiva durante el registro (pre-suscripción, LA Sistemas, SubscriptionPayment).
@@ -602,6 +603,15 @@ export const BVC_AES_IV = __env__("P_BVC_AES_IV", true);
 
 /** BVC API Key */
 export const BVC_API_KEY = __env__("P_BVC_API_KEY", true);
+
+/** BVC Bank Account Code */
+export const BVC_BANK_ACCOUNT_CODE = __env__("P_BVC_BANK_ACCOUNT_CODE", true);
+
+/** BVC Bank Account Number */
+export const BVC_BANK_ACCOUNT_NUMBER = __env__(
+  "P_BVC_BANK_ACCOUNT_NUMBER",
+  true,
+);
 
 /**
  * Cookie options.

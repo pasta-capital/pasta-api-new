@@ -86,6 +86,30 @@ export const bancamiga = (message: string, obj?: any) => {
   }
 };
 
+// Nuevo método para pagos
+export const bvc = (message: string, obj?: any) => {
+  if (ENABLE_LOGGING && ENABLE_PAGO_LOGGING) {
+    const pagoLogger = winston.createLogger({
+      format: format.combine(
+        format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+        logFormat,
+      ),
+      transports: [
+        new transports.File({
+          filename: `logs/bvc/${new Date().toISOString().split("T")[0]}.log`,
+          level: "info",
+        }),
+      ],
+    });
+
+    if (obj) {
+      pagoLogger.info(`${message} ${JSON.stringify(obj)}`);
+    } else {
+      pagoLogger.info(message);
+    }
+  }
+};
+
 // Método para operaciones de crédito
 export const operation = (message: string, obj?: any) => {
   if (ENABLE_LOGGING && ENABLE_OPERATION_LOGGING) {
