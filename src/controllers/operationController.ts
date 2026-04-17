@@ -57,6 +57,7 @@ import { InsertOperationData } from "../models/la/insertOperationData";
 import * as loggers from "../common/logger";
 import { getScore } from "../services/userService";
 import { InsertPaymentData } from "../models/la/insertPaymentData";
+import { createAndSendCampaign } from "../services/notificationService";
 
 /**
  * Request operation
@@ -667,6 +668,110 @@ export const confirmOperation = asyncHandler(
         : operation.user.document
       : operation.beneficiary?.identificationNumber;
 
+    // #TODO: BEGIN LA INSERT OPERATION
+    const day = String(operation.createdAt.getDate()).padStart(2, "0");
+    const month = String(operation.createdAt.getMonth() + 1).padStart(2, "0");
+    const year = operation.createdAt.getFullYear();
+    const iniDate = `${day}/${month}/${year}`;
+
+    const insertOperationData: InsertOperationData = {
+      Rif: operation.user.identificationType + operation.user.document,
+      Validagraba: "G",
+      Producto: "C2",
+      Moneda: "1",
+      Monefec: "0",
+      Comi: (-(operation.commissionAmount ?? 0)).toFixed(2),
+      Inicio: iniDate,
+      Venc: iniDate,
+      Cuotas: operation.feeCount.toString(),
+      Monto: operation.amountUsd.toFixed(2),
+      Tpcambio: operation.rate.toString(),
+      Tasa: operation.annualCommission.toString(),
+      Fpago: "1",
+      // Refer: transaction.data.ref_ibp ?? reference,
+      Refer: "",
+      Tpint: "V",
+      Numesa: "1",
+      Nuveh: "1",
+      // Nucorre: "1",
+      Nucorre: "",
+      Tipomm: "0",
+      Copaso: "",
+    };
+    const insertOperationResult = await InsertOperation(insertOperationData);
+    if (!insertOperationResult.success) {
+      loggers.error("Error al insertar la operación en LA", {
+        error: insertOperationResult.message,
+        data: insertOperationResult.data,
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: `Error al insertar la operación en LA - /WInserta_transacMMCred: ${insertOperationResult.message}`,
+        code: "error",
+        error: insertOperationResult.error ?? "",
+      });
+    }
+    // #TODO: END LA INSERT OPERATION
+
+    // Sincronizar cuotas desde LA Sistemas 3 veces
+    const rif = operation.user.identificationType + operation.user.document;
+    let syncDebtPaymentsResult = false;
+    (async () => {
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        syncDebtPaymentsResult = await syncDebtPayments(
+          String(operation._id),
+          rif,
+        );
+        if (syncDebtPaymentsResult) {
+          break;
+        } else {
+          loggers.operation(
+            `Sincronización inicial de deuda fallida (Intento ${attempt}/${maxRetries}) - OperationId : ${operation._id}`,
+            {
+              action: "confirm_operation",
+              step: "sync_debt_retry",
+              operationId: operation._id,
+              attempt,
+            },
+          );
+          if (attempt < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+          } else {
+            loggers.operation(
+              "Sincronización de deuda fallida, se reintentará mediante scheduler",
+              {
+                action: "confirm_operation",
+                step: "sync_debt_retry_scheduled",
+                operationId: operation._id,
+              },
+            );
+          }
+        }
+      }
+    })();
+    if (!syncDebtPaymentsResult) {
+      //Send PushNotifications
+      const pushNotification = {
+        audience: "USER",
+        infoType: "ERROR",
+        type: "MOBILE",
+        title: "Operación fallida",
+        description: "Tu pasta no se ha podido procesar, intenta nuevamente",
+        users: [new Types.ObjectId(operation.user._id)],
+        status: "scheduled",
+        isPromotional: false,
+      };
+      await createAndSendCampaign(pushNotification);
+      return res.status(400).json({
+        success: false,
+        message: `Sincronización de deuda fallida, envio de push notifications notificando al usuario`,
+        code: "error",
+      });
+    }
+
+    /** #TODO: CREDIT BEGIN SYPAGO*/
     const sypagoCreditBody = {
       internal_id: reference,
       account: {
@@ -715,7 +820,7 @@ export const confirmOperation = asyncHandler(
         },
       },
     });
-    /**CREDIT BEGIN */
+
     const creditTransaction = await credit(sypagoCreditBody);
 
     loggers.operation("Confirm Operation - Respuesta crédito Sypago", {
@@ -810,44 +915,9 @@ export const confirmOperation = asyncHandler(
         error: getStatusDescription(transaction.data.status),
       });
     }
-    /**CREDIT END */
+    /** #TODO: CREDIT END SYPAGO*/
 
-    const day = String(operation.createdAt.getDate()).padStart(2, "0");
-    const month = String(operation.createdAt.getMonth() + 1).padStart(2, "0");
-    const year = operation.createdAt.getFullYear();
-    const iniDate = `${day}/${month}/${year}`;
-
-    const insertOperationData: InsertOperationData = {
-      Rif: operation.user.identificationType + operation.user.document,
-      Validagraba: "G",
-      Producto: "C2",
-      Moneda: "1",
-      Monefec: "0",
-      Comi: (-(operation.commissionAmount ?? 0)).toFixed(2),
-      Inicio: iniDate,
-      Venc: iniDate,
-      Cuotas: operation.feeCount.toString(),
-      Monto: operation.amountUsd.toFixed(2),
-      Tpcambio: operation.rate.toString(),
-      Tasa: operation.annualCommission.toString(),
-      Fpago: "1",
-      Refer: transaction.data.ref_ibp ?? reference,
-      // Refer: "",
-      Tpint: "V",
-      Numesa: "1",
-      Nuveh: "1",
-      Nucorre: "1",
-      Tipomm: "0",
-      Copaso: "",
-    };
-    const insertOperationResult = await InsertOperation(insertOperationData);
-    if (!insertOperationResult.success) {
-      loggers.error("Error al insertar la operación en LA", {
-        error: insertOperationResult.message,
-        data: insertOperationResult.data,
-      });
-    }
-
+    //#TODO: BEGIN INSERT PAYMENT DATA
     const insertPaymentCommissionBody: InsertPaymentData = {
       Rif: operation.user.identificationType + operation.user.document,
       Val_gra: "G",
@@ -910,22 +980,20 @@ export const confirmOperation = asyncHandler(
         status: transaction.data.status,
       },
     });
+    // #TODO: END INSERT PAYMENT DATA
 
-    // Sincronizar cuotas desde LA Sistemas (proceso en segundo plano o inmediato)
-    const rif = operation.user.identificationType + operation.user.document;
-    syncDebtPayments(String(operation._id), rif).then((success) => {
-      if (!success) {
-        loggers.operation(
-          "Sincronización inicial de deuda fallida, se reintentará mediante scheduler",
-          {
-            action: "confirm_operation",
-            step: "sync_debt_retry_scheduled",
-            operationId: operation._id,
-          },
-        );
-      }
-    });
-
+    // #TODO: SEND PUSH NOTIFICATIONS TO CONFIRM THE USER THE OPERATION
+    const pushNotification = {
+      audience: "USER",
+      infoType: "SUCCESS",
+      type: "MOBILE",
+      title: "Operación exitosa",
+      description: "Tu pasta se ha procesado exitosamente, verifica tu cuenta",
+      users: [new Types.ObjectId(operation.user._id)],
+      status: "scheduled",
+      isPromotional: false,
+    };
+    await createAndSendCampaign(pushNotification);
     res.status(200).json({ success: true, message: "Operación confirmada" });
   },
 );

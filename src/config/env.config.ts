@@ -803,6 +803,7 @@ export interface NotificationCounter extends Document {
  */
 export interface Operation extends Document {
   user: {
+    _id?: Types.ObjectId;
     name: string;
     lastname: string;
     email: string;
