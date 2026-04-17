@@ -972,8 +972,6 @@ export const confirmOperation = asyncHandler(
         });
       }
 
-      operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
-      operation.internalReference = reference;
       operation.sypagoId = transaction.data.transaction_id;
       operation.reference = transaction.data.ref_ibp ?? reference;
       operation.status = "approved";
