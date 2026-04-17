@@ -168,9 +168,20 @@ export const syncDebtPayments = async (operationId: string, rif: string) => {
       ? posiciones
       : [posiciones];
 
-    const posicionToken = operation.reference || operation.internalReference;
+    const posicionToken = String(
+      operation.reference || operation.internalReference || "",
+    ).trim();
+
+    if (!posicionToken) {
+      loggers.operation("Operación sin referencia para sincronización", {
+        action: "sync_debt_payments",
+        operationId,
+      });
+      return false;
+    }
+
     const posicion = posicionesArray.find(
-      (p: any) => p.Refapertura === posicionToken,
+      (p: any) => String(p.Refapertura || "").trim() === posicionToken,
     );
 
     if (!posicion) {

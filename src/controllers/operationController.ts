@@ -712,6 +712,10 @@ export const confirmOperation = asyncHandler(
         error: insertOperationResult.error ?? "",
       });
     }
+
+    operation.internalReference = reference;
+    operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
+    await operation.save();
     // #TODO: END LA INSERT OPERATION
 
     // Sincronizar cuotas desde LA Sistemas 3 veces
