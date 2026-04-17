@@ -717,284 +717,284 @@ export const confirmOperation = asyncHandler(
     // Sincronizar cuotas desde LA Sistemas 3 veces
     const rif = operation.user.identificationType + operation.user.document;
     let syncDebtPaymentsResult = false;
-    
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      syncDebtPaymentsResult = await syncDebtPayments(
-        String(operation._id),
-        rif,
-      );
-      if (syncDebtPaymentsResult) {
-        break;
-      } else {
-        loggers.operation(
-          `Sincronización inicial de deuda fallida (Intento ${attempt}/${maxRetries}) - OperationId : ${operation._id}`,
-          {
-            action: "confirm_operation",
-            step: "sync_debt_retry",
-            operationId: operation._id,
-            attempt,
-          },
+    // #TODO: Execute this task in background : syncDebtPayments, SyPago Credit and Push Notifications
+    (async () => {
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        syncDebtPaymentsResult = await syncDebtPayments(
+          String(operation._id),
+          rif,
         );
-        if (attempt < maxRetries) {
-          // Esperamos 3 segundos en lugar de 30 para evitar que el request HTTP haga timeout
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+        if (syncDebtPaymentsResult) {
+          break;
         } else {
           loggers.operation(
-            "Sincronización de deuda fallida tras todos los reintentos permitidos",
+            `Sincronización inicial de deuda fallida (Intento ${attempt}/${maxRetries}) - OperationId : ${operation._id}`,
             {
               action: "confirm_operation",
-              step: "sync_debt_retry_scheduled",
+              step: "sync_debt_retry",
               operationId: operation._id,
+              attempt,
             },
           );
+          if (attempt < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+          } else {
+            loggers.operation(
+              "Sincronización de deuda fallida, se reintentará mediante scheduler",
+              {
+                action: "confirm_operation",
+                step: "sync_debt_retry_scheduled",
+                operationId: operation._id,
+              },
+            );
+          }
         }
       }
-    }
 
-    if (!syncDebtPaymentsResult) {
-      //Send PushNotifications
+      if (!syncDebtPaymentsResult) {
+        //Send PushNotifications
+        const pushNotification = {
+          audience: "USER",
+          infoType: "ERROR",
+          type: "MOBILE",
+          title: "Operación fallida",
+          description: "Tu pasta no se ha podido procesar, intenta nuevamente",
+          users: [new Types.ObjectId(operation.user._id)],
+          status: "scheduled",
+          isPromotional: false,
+        };
+        await createAndSendCampaign(pushNotification);
+      }
+
+      /** #TODO: CREDIT BEGIN SYPAGO*/
+      const sypagoCreditBody = {
+        internal_id: reference,
+        account: {
+          bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
+          type: "CNTA",
+          number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
+        },
+        sub_product: env.SYPAGO_CREDIT_SUBPRODUCT_ID!,
+        amount: {
+          amt: operation.settledAmount,
+          currency: "VES",
+        },
+        notification_urls: {
+          web_hook_endpoint: env.SYPAGO_WEBHOOK_URL!,
+        },
+        receiving_user: {
+          name: "Test User",
+          document_info: {
+            type: identificationType,
+            number: document,
+          },
+          account: {
+            bank_code: bankCode,
+            type: type,
+            number: number,
+          },
+        },
+        concept: "Pago movil",
+      };
+
+      loggers.operation("Confirm Operation - Iniciando crédito Sypago", {
+        action: "confirm_operation",
+        step: "sypago_credit_start",
+        userId: req.user!.id,
+        operationId: body.operationId,
+        reference,
+        sypagoCreditBody: {
+          internal_id: sypagoCreditBody.internal_id,
+          amount: sypagoCreditBody.amount,
+          receiving_user: {
+            document_info: sypagoCreditBody.receiving_user.document_info,
+            account: {
+              bank_code: sypagoCreditBody.receiving_user.account.bank_code,
+              type: sypagoCreditBody.receiving_user.account.type,
+            },
+          },
+        },
+      });
+
+      const creditTransaction = await credit(sypagoCreditBody);
+
+      loggers.operation("Confirm Operation - Respuesta crédito Sypago", {
+        action: "confirm_operation",
+        step: "sypago_credit_response",
+        userId: req.user!.id,
+        operationId: body.operationId,
+        success: creditTransaction.success,
+        transactionId: creditTransaction.data?.transaction_id,
+        message: creditTransaction.message,
+      });
+
+      if (!creditTransaction.success) {
+        loggers.operation("Confirm Operation - Error en crédito Sypago", {
+          action: "confirm_operation",
+          step: "sypago_credit_error",
+          userId: req.user!.id,
+          operationId: body.operationId,
+          error: creditTransaction.message,
+          data: creditTransaction.data,
+        });
+        return res.status(400).json({
+          success: false,
+          message: "Error al generar la transacción",
+          code: "error",
+          error: creditTransaction.message,
+        });
+      }
+      operation.sypagoId = creditTransaction.data.transaction_id;
+
+      loggers.operation(
+        "Confirm Operation - Obteniendo resultado de transacción",
+        {
+          action: "confirm_operation",
+          step: "get_transaction_result_start",
+          userId: req.user!.id,
+          operationId: body.operationId,
+          transactionId: creditTransaction.data.transaction_id,
+        },
+      );
+
+      /**GET SYPAGO TRANSACTION RESULT */
+      const transaction = await getTransactionResult(
+        creditTransaction.data.transaction_id,
+      );
+
+      loggers.operation(
+        "Confirm Operation - Resultado de transacción obtenido",
+        {
+          action: "confirm_operation",
+          step: "get_transaction_result_response",
+          userId: req.user!.id,
+          operationId: body.operationId,
+          success: transaction.success,
+          status: transaction.data?.status,
+          rejectedCode: transaction.data?.rejected_code,
+        },
+      );
+
+      if (!transaction.success) {
+        loggers.operation("Confirm Operation - Error obteniendo transacción", {
+          action: "confirm_operation",
+          step: "get_transaction_result_error",
+          userId: req.user!.id,
+          operationId: body.operationId,
+          error: transaction.message,
+        });
+        return res.status(400).json({
+          success: false,
+          message: "Error al obtener la transacción",
+          code: "error",
+          error: transaction.message,
+        });
+      }
+
+      if (transaction.data.status !== TransactionStatusCode.ACCP) {
+        loggers.operation("Confirm Operation - Transacción rechazada", {
+          action: "confirm_operation",
+          step: "transaction_rejected",
+          userId: req.user!.id,
+          operationId: body.operationId,
+          status: transaction.data.status,
+          rejectedCode: transaction.data.rejected_code,
+          statusDescription: getStatusDescription(transaction.data.status),
+          rejectedDescription: getRejectedCodeDescription(
+            transaction.data.rejected_code,
+          ),
+        });
+        return res.status(400).json({
+          success: false,
+          message:
+            "La transacción no está aprobada - " +
+            getRejectedCodeDescription(transaction.data.rejected_code),
+          code: "error",
+          error: getStatusDescription(transaction.data.status),
+        });
+      }
+      /** #TODO: CREDIT END SYPAGO*/
+
+      //#TODO: BEGIN INSERT PAYMENT DATA
+      const insertPaymentCommissionBody: InsertPaymentData = {
+        Rif: operation.user.identificationType + operation.user.document,
+        Val_gra: "G",
+        FlEmi: iniDate,
+        FlDisp: iniDate,
+        Cuenta: "",
+        Concepto: "Comisión por desembolso",
+        TpPaso: "E",
+        Nunota: reference,
+        Refer: transaction.data.ref_ibp ?? reference,
+        Nurefer: "",
+        Nucorre: 1,
+        Fpago: 3,
+        Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
+        Tpcambio: "1",
+        Copaso: "",
+        Nupaso: 0,
+        Statusabono: 1,
+        Statusliq: "B",
+        Statusoper: "N",
+        Codcontrap: "640201",
+      };
+
+      const insertPaymentCommissionResult = await InsertPayment(
+        insertPaymentCommissionBody,
+      );
+      if (!insertPaymentCommissionResult.success) {
+        loggers.error("Error al insertar la comisión en LA", {
+          error: insertPaymentCommissionResult.message,
+          data: insertPaymentCommissionResult.data,
+        });
+      }
+
+      operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
+      operation.internalReference = reference;
+      operation.sypagoId = transaction.data.transaction_id;
+      operation.reference = transaction.data.ref_ibp ?? reference;
+      operation.status = "approved";
+      operation.expireAt = undefined;
+      operation.comment = body.comment;
+      operation.icon = icons[operationCount % icons.length];
+      await operation.save();
+      await updateCustomerStatusToActive(req.user!.id);
+
+      loggers.operation("Confirm Operation - Operación aprobada exitosamente", {
+        action: "confirm_operation",
+        step: "operation_approved",
+        userId: req.user!.id,
+        operationId: body.operationId,
+        operationData: {
+          status: operation.status,
+          reference: operation.reference,
+          sypagoId: operation.sypagoId,
+          laCopaso: operation.laCopaso,
+          icon: operation.icon,
+        },
+        transactionData: {
+          transactionId: transaction.data.transaction_id,
+          refIbp: transaction.data.ref_ibp,
+          status: transaction.data.status,
+        },
+      });
+      // #TODO: END INSERT PAYMENT DATA
+
+      // #TODO: SEND PUSH NOTIFICATIONS TO CONFIRM THE USER THE OPERATION
       const pushNotification = {
         audience: "USER",
-        infoType: "ERROR",
+        infoType: "SUCCESS",
         type: "MOBILE",
-        title: "Operación fallida",
-        description: "Tu pasta no se ha podido procesar, intenta nuevamente",
+        title: "Operación exitosa",
+        description:
+          "Tu pasta se ha procesado exitosamente, verifica tu cuenta",
         users: [new Types.ObjectId(operation.user._id)],
         status: "scheduled",
         isPromotional: false,
       };
       await createAndSendCampaign(pushNotification);
-      return res.status(400).json({
-        success: false,
-        message: `Sincronización de deuda fallida, envio de push notifications notificando al usuario`,
-        code: "error",
-      });
-    }
-
-    /** #TODO: CREDIT BEGIN SYPAGO*/
-    const sypagoCreditBody = {
-      internal_id: reference,
-      account: {
-        bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-        type: "CNTA",
-        number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-      },
-      sub_product: env.SYPAGO_CREDIT_SUBPRODUCT_ID!,
-      amount: {
-        amt: operation.settledAmount,
-        currency: "VES",
-      },
-      notification_urls: {
-        web_hook_endpoint: env.SYPAGO_WEBHOOK_URL!,
-      },
-      receiving_user: {
-        name: "Test User",
-        document_info: {
-          type: identificationType,
-          number: document,
-        },
-        account: {
-          bank_code: bankCode,
-          type: type,
-          number: number,
-        },
-      },
-      concept: "Pago movil",
-    };
-
-    loggers.operation("Confirm Operation - Iniciando crédito Sypago", {
-      action: "confirm_operation",
-      step: "sypago_credit_start",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      reference,
-      sypagoCreditBody: {
-        internal_id: sypagoCreditBody.internal_id,
-        amount: sypagoCreditBody.amount,
-        receiving_user: {
-          document_info: sypagoCreditBody.receiving_user.document_info,
-          account: {
-            bank_code: sypagoCreditBody.receiving_user.account.bank_code,
-            type: sypagoCreditBody.receiving_user.account.type,
-          },
-        },
-      },
-    });
-
-    const creditTransaction = await credit(sypagoCreditBody);
-
-    loggers.operation("Confirm Operation - Respuesta crédito Sypago", {
-      action: "confirm_operation",
-      step: "sypago_credit_response",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      success: creditTransaction.success,
-      transactionId: creditTransaction.data?.transaction_id,
-      message: creditTransaction.message,
-    });
-
-    if (!creditTransaction.success) {
-      loggers.operation("Confirm Operation - Error en crédito Sypago", {
-        action: "confirm_operation",
-        step: "sypago_credit_error",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        error: creditTransaction.message,
-        data: creditTransaction.data,
-      });
-      return res.status(400).json({
-        success: false,
-        message: "Error al generar la transacción",
-        code: "error",
-        error: creditTransaction.message,
-      });
-    }
-    operation.sypagoId = creditTransaction.data.transaction_id;
-
-    loggers.operation(
-      "Confirm Operation - Obteniendo resultado de transacción",
-      {
-        action: "confirm_operation",
-        step: "get_transaction_result_start",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        transactionId: creditTransaction.data.transaction_id,
-      },
-    );
-
-    /**GET SYPAGO TRANSACTION RESULT */
-    const transaction = await getTransactionResult(
-      creditTransaction.data.transaction_id,
-    );
-
-    loggers.operation("Confirm Operation - Resultado de transacción obtenido", {
-      action: "confirm_operation",
-      step: "get_transaction_result_response",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      success: transaction.success,
-      status: transaction.data?.status,
-      rejectedCode: transaction.data?.rejected_code,
-    });
-
-    if (!transaction.success) {
-      loggers.operation("Confirm Operation - Error obteniendo transacción", {
-        action: "confirm_operation",
-        step: "get_transaction_result_error",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        error: transaction.message,
-      });
-      return res.status(400).json({
-        success: false,
-        message: "Error al obtener la transacción",
-        code: "error",
-        error: transaction.message,
-      });
-    }
-
-    if (transaction.data.status !== TransactionStatusCode.ACCP) {
-      loggers.operation("Confirm Operation - Transacción rechazada", {
-        action: "confirm_operation",
-        step: "transaction_rejected",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        status: transaction.data.status,
-        rejectedCode: transaction.data.rejected_code,
-        statusDescription: getStatusDescription(transaction.data.status),
-        rejectedDescription: getRejectedCodeDescription(
-          transaction.data.rejected_code,
-        ),
-      });
-      return res.status(400).json({
-        success: false,
-        message:
-          "La transacción no está aprobada - " +
-          getRejectedCodeDescription(transaction.data.rejected_code),
-        code: "error",
-        error: getStatusDescription(transaction.data.status),
-      });
-    }
-    /** #TODO: CREDIT END SYPAGO*/
-
-    //#TODO: BEGIN INSERT PAYMENT DATA
-    const insertPaymentCommissionBody: InsertPaymentData = {
-      Rif: operation.user.identificationType + operation.user.document,
-      Val_gra: "G",
-      FlEmi: iniDate,
-      FlDisp: iniDate,
-      Cuenta: "",
-      Concepto: "Comisión por desembolso",
-      TpPaso: "E",
-      Nunota: reference,
-      Refer: transaction.data.ref_ibp ?? reference,
-      Nurefer: "",
-      Nucorre: 1,
-      Fpago: 3,
-      Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
-      Tpcambio: "1",
-      Copaso: "",
-      Nupaso: 0,
-      Statusabono: 1,
-      Statusliq: "B",
-      Statusoper: "N",
-      Codcontrap: "640201",
-    };
-
-    const insertPaymentCommissionResult = await InsertPayment(
-      insertPaymentCommissionBody,
-    );
-    if (!insertPaymentCommissionResult.success) {
-      loggers.error("Error al insertar la comisión en LA", {
-        error: insertPaymentCommissionResult.message,
-        data: insertPaymentCommissionResult.data,
-      });
-    }
-
-    operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
-    operation.internalReference = reference;
-    operation.sypagoId = transaction.data.transaction_id;
-    operation.reference = transaction.data.ref_ibp ?? reference;
-    operation.status = "approved";
-    operation.expireAt = undefined;
-    operation.comment = body.comment;
-    operation.icon = icons[operationCount % icons.length];
-    await operation.save();
-    await updateCustomerStatusToActive(req.user!.id);
-
-    loggers.operation("Confirm Operation - Operación aprobada exitosamente", {
-      action: "confirm_operation",
-      step: "operation_approved",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      operationData: {
-        status: operation.status,
-        reference: operation.reference,
-        sypagoId: operation.sypagoId,
-        laCopaso: operation.laCopaso,
-        icon: operation.icon,
-      },
-      transactionData: {
-        transactionId: transaction.data.transaction_id,
-        refIbp: transaction.data.ref_ibp,
-        status: transaction.data.status,
-      },
-    });
-    // #TODO: END INSERT PAYMENT DATA
-
-    // #TODO: SEND PUSH NOTIFICATIONS TO CONFIRM THE USER THE OPERATION
-    const pushNotification = {
-      audience: "USER",
-      infoType: "SUCCESS",
-      type: "MOBILE",
-      title: "Operación exitosa",
-      description: "Tu pasta se ha procesado exitosamente, verifica tu cuenta",
-      users: [new Types.ObjectId(operation.user._id)],
-      status: "scheduled",
-      isPromotional: false,
-    };
-    await createAndSendCampaign(pushNotification);
+    })();
     res.status(200).json({ success: true, message: "Operación confirmada" });
   },
 );
