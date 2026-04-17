@@ -738,7 +738,7 @@ export const confirmOperation = asyncHandler(
             },
           );
           if (attempt < maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, 30000));
+            await new Promise((resolve) => setTimeout(resolve, 60000));
           } else {
             loggers.operation(
               "Sincronización de deuda fallida, se reintentará mediante scheduler",
@@ -781,6 +781,8 @@ export const confirmOperation = asyncHandler(
           isPromotional: false,
         };
         await createAndSendCampaign(pushNotification);
+        //Added return to stop the function execution
+        return;
       }
 
       /** #TODO: CREDIT BEGIN SYPAGO*/
@@ -854,12 +856,12 @@ export const confirmOperation = asyncHandler(
           error: creditTransaction.message,
           data: creditTransaction.data,
         });
-        return res.status(400).json({
-          success: false,
-          message: "Error al generar la transacción",
-          code: "error",
-          error: creditTransaction.message,
-        });
+        // return res.status(400).json({
+        //   success: false,
+        //   message: "Error al generar la transacción",
+        //   code: "error",
+        //   error: creditTransaction.message,
+        // });
       }
       operation.sypagoId = creditTransaction.data.transaction_id;
 
@@ -900,12 +902,12 @@ export const confirmOperation = asyncHandler(
           operationId: body.operationId,
           error: transaction.message,
         });
-        return res.status(400).json({
-          success: false,
-          message: "Error al obtener la transacción",
-          code: "error",
-          error: transaction.message,
-        });
+        // return res.status(400).json({
+        //   success: false,
+        //   message: "Error al obtener la transacción",
+        //   code: "error",
+        //   error: transaction.message,
+        // });
       }
 
       if (transaction.data.status !== TransactionStatusCode.ACCP) {
@@ -921,14 +923,14 @@ export const confirmOperation = asyncHandler(
             transaction.data.rejected_code,
           ),
         });
-        return res.status(400).json({
-          success: false,
-          message:
-            "La transacción no está aprobada - " +
-            getRejectedCodeDescription(transaction.data.rejected_code),
-          code: "error",
-          error: getStatusDescription(transaction.data.status),
-        });
+        // return res.status(400).json({
+        //   success: false,
+        //   message:
+        //     "La transacción no está aprobada - " +
+        //     getRejectedCodeDescription(transaction.data.rejected_code),
+        //   code: "error",
+        //   error: getStatusDescription(transaction.data.status),
+        // });
       }
       /** #TODO: CREDIT END SYPAGO*/
 
