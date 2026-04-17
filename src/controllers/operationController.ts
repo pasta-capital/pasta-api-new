@@ -717,40 +717,41 @@ export const confirmOperation = asyncHandler(
     // Sincronizar cuotas desde LA Sistemas 3 veces
     const rif = operation.user.identificationType + operation.user.document;
     let syncDebtPaymentsResult = false;
-    (async () => {
-      const maxRetries = 3;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        syncDebtPaymentsResult = await syncDebtPayments(
-          String(operation._id),
-          rif,
+    
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      syncDebtPaymentsResult = await syncDebtPayments(
+        String(operation._id),
+        rif,
+      );
+      if (syncDebtPaymentsResult) {
+        break;
+      } else {
+        loggers.operation(
+          `Sincronización inicial de deuda fallida (Intento ${attempt}/${maxRetries}) - OperationId : ${operation._id}`,
+          {
+            action: "confirm_operation",
+            step: "sync_debt_retry",
+            operationId: operation._id,
+            attempt,
+          },
         );
-        if (syncDebtPaymentsResult) {
-          break;
+        if (attempt < maxRetries) {
+          // Esperamos 3 segundos en lugar de 30 para evitar que el request HTTP haga timeout
+          await new Promise((resolve) => setTimeout(resolve, 3000));
         } else {
           loggers.operation(
-            `Sincronización inicial de deuda fallida (Intento ${attempt}/${maxRetries}) - OperationId : ${operation._id}`,
+            "Sincronización de deuda fallida tras todos los reintentos permitidos",
             {
               action: "confirm_operation",
-              step: "sync_debt_retry",
+              step: "sync_debt_retry_scheduled",
               operationId: operation._id,
-              attempt,
             },
           );
-          if (attempt < maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-          } else {
-            loggers.operation(
-              "Sincronización de deuda fallida, se reintentará mediante scheduler",
-              {
-                action: "confirm_operation",
-                step: "sync_debt_retry_scheduled",
-                operationId: operation._id,
-              },
-            );
-          }
         }
       }
-    })();
+    }
+
     if (!syncDebtPaymentsResult) {
       //Send PushNotifications
       const pushNotification = {
