@@ -754,12 +754,28 @@ export const confirmOperation = asyncHandler(
 
       if (!syncDebtPaymentsResult) {
         //Send PushNotifications
+        const voidInsertOperation = await InsertOperation({
+          ...insertOperationData,
+          Validagraba: "A",
+          Copaso: insertOperationResult.data.Copaso,
+        });
+        loggers.operation(
+          `Operación anulada - OperationId : ${operation._id}`,
+          {
+            action: "confirm_operation",
+            step: "void_operation",
+            operationId: operation._id,
+            status: voidInsertOperation.data.status,
+          },
+        );
         const pushNotification = {
           audience: "USER",
           infoType: "ERROR",
           type: "MOBILE",
           title: "Operación fallida",
-          description: "Tu pasta no se ha podido procesar, intenta nuevamente",
+          description: voidInsertOperation.success
+            ? "Tu pasta no se ha podido procesar, intenta nuevamente"
+            : `Pasta no procesada, comparte el siguiente mensaje con soporte : ${voidInsertOperation.data.Copaso}`,
           users: [new Types.ObjectId(operation.user._id)],
           status: "scheduled",
           isPromotional: false,
