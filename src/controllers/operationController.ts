@@ -2154,7 +2154,10 @@ export const payDebtConfirmation = asyncHandler(
 
       let reference = body.reference;
       let referenceSmall = body.reference;
-      if (body.reference !== "000000" && env.TESTING) {
+      const shouldSkipExternalValidation =
+        env.TESTING && body.reference === "000000";
+
+      if (!shouldSkipExternalValidation) {
         if (body.paymentType === "mobile" || body.paymentType === "transfer") {
           const phone = body.phone.startsWith("58")
             ? body.phone
