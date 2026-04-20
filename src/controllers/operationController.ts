@@ -127,6 +127,28 @@ export const requestOperation = asyncHandler(
       });
     }
 
+    const activeOperation = await Operation.findOne({
+      user: req.user!.id,
+      status: { $nin: ["processing"] },
+    });
+
+    if (activeOperation) {
+      loggers.operation("Request Operation - Bloqueado: Operación existente", {
+        action: "request_operation",
+        step: "validation_error",
+        userId: req.user!.id,
+        existingOperationId: activeOperation._id,
+        status: activeOperation.status,
+      });
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Ya tiene una operación en curso. Por favor, espere a que finalice para solicitar una nueva.",
+        code: "operation_in_progress",
+      });
+    }
+
     user.userAgent = req.headers["user-agent"] as string;
     const score = await getScore(user);
 
@@ -224,7 +246,7 @@ export const requestOperation = asyncHandler(
       {
         $match: {
           user: new Types.ObjectId(req.user!.id),
-          status: { $nin: ["void", "paid"] },
+          status: { $nin: ["void", "processing", "paid"] },
         },
       },
       {
