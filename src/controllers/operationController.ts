@@ -129,7 +129,7 @@ export const requestOperation = asyncHandler(
 
     const activeOperation = await Operation.findOne({
       user: req.user!.id,
-      status: { $nin: ["processing"] },
+      status: { $in: ["processing"] },
     });
 
     if (activeOperation) {
