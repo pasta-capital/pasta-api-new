@@ -813,7 +813,8 @@ export const confirmOperation = asyncHandler(
           };
           await createAndSendCampaign(pushNotification);
           await Operation.findByIdAndUpdate(operation._id, {
-            status: "rejected",
+            $set: { status: "rejected" },
+            $unset: { expireAt: 1 },
           });
 
           //Added return to stop the function execution
@@ -1073,6 +1074,7 @@ export const confirmOperation = asyncHandler(
 
           await Operation.findByIdAndUpdate(operation._id, {
             $set: { status: "rejected" },
+            $unset: { expireAt: 1 },
           });
         } else if (paymentSent) {
           // CRITICAL CASE: Payment was sent but something failed after (e.g. updating our DB)
