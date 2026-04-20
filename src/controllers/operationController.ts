@@ -746,6 +746,8 @@ export const confirmOperation = asyncHandler(
     let syncDebtPaymentsResult = false;
     // #TODO: Execute this task in background : syncDebtPayments, SyPago Credit and Push Notifications
     (async () => {
+      let paymentSent = false;
+      let alreadyVoided = false;
       try {
         const maxRetries = 3;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -787,6 +789,7 @@ export const confirmOperation = asyncHandler(
             Validagraba: "A",
             Copaso: insertOperationResult.data.Copaso,
           });
+          alreadyVoided = true;
           loggers.operation(
             `Operación anulada - OperationId : ${operation._id}`,
             {
@@ -895,6 +898,7 @@ export const confirmOperation = asyncHandler(
             creditTransaction.message || "Error al generar la transacción",
           );
         }
+        paymentSent = true;
         operation.sypagoId = creditTransaction.data.transaction_id;
 
         loggers.operation(
@@ -955,6 +959,7 @@ export const confirmOperation = asyncHandler(
               transaction.data.rejected_code,
             ),
           });
+          paymentSent = false;
           throw new Error(
             "La transacción no está aprobada - " +
               getRejectedCodeDescription(transaction.data.rejected_code),
@@ -1046,19 +1051,42 @@ export const confirmOperation = asyncHandler(
         };
         await createAndSendCampaign(pushNotification);
       } catch (error: any) {
-        loggers.operation("Confirm Operation - Error en flujo asíncrono", {
-          action: "confirm_operation",
-          step: "async_flow_error",
-          userId: req.user!.id,
-          operationId: body.operationId,
+        loggers.error("Confirm Operation - Background Error", {
           error: error.message,
-          stack: error.stack,
+          paymentSent,
         });
 
-        await Operation.findByIdAndUpdate(operation._id, {
-          $set: { status: "rejected" },
-          $unset: { expireAt: "" },
-        });
+        // ONLY void in LA if the money was NOT sent
+        if (
+          !paymentSent &&
+          !alreadyVoided &&
+          insertOperationResult?.data?.Copaso
+        ) {
+          loggers.operation("Rollback: Anulando en LA (Pago no realizado)", {
+            operationId: operation._id,
+          });
+          await InsertOperation({
+            ...insertOperationData,
+            Validagraba: "A",
+            Copaso: insertOperationResult.data.Copaso,
+          });
+
+          await Operation.findByIdAndUpdate(operation._id, {
+            $set: { status: "rejected" },
+          });
+        } else if (paymentSent) {
+          // CRITICAL CASE: Payment was sent but something failed after (e.g. updating our DB)
+          loggers.error(
+            "ALERTA: Pago enviado pero el flujo falló después. NO ANULAR EN LA.",
+            {
+              operationId: operation._id,
+              sypagoId: operation.sypagoId,
+            },
+          );
+          await Operation.findByIdAndUpdate(operation._id, {
+            $set: { status: "processing" },
+          });
+        }
       }
     })();
     res.status(200).json({ success: true, message: "Operación confirmada" });
