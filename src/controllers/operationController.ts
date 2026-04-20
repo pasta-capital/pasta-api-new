@@ -2856,6 +2856,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
   const globalFilter = req.query.globalFilter as string;
   const startDateParam = req.query.startDate as string;
   const endDateParam = req.query.endDate as string;
+  const statusFilter = req.query.status as string;
   const skip = (page - 1) * limit;
 
   const filter: any = {};
@@ -2873,6 +2874,11 @@ export const getAllOperations = async (req: Request, res: Response) => {
       filter.createdAt = { ...filter.createdAt, $lte: endDate };
     }
   }
+
+  if (statusFilter) {
+    filter.status = statusFilter;
+  }
+
   if (globalFilter) {
     // Create a case-insensitive regular expression for the search term
     const regex = new RegExp(globalFilter, "i");
