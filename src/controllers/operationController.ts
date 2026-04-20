@@ -715,6 +715,7 @@ export const confirmOperation = asyncHandler(
 
     operation.internalReference = reference;
     operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
+    operation.status = "processing";
     await operation.save();
     // #TODO: END LA INSERT OPERATION
 
@@ -742,7 +743,7 @@ export const confirmOperation = asyncHandler(
             },
           );
           if (attempt < maxRetries) {
-            await new Promise((resolve) => setTimeout(resolve, 60000));
+            await new Promise((resolve) => setTimeout(resolve, 30000));
           } else {
             loggers.operation(
               "Sincronización de deuda fallida, se reintentará mediante scheduler",
@@ -785,6 +786,10 @@ export const confirmOperation = asyncHandler(
           isPromotional: false,
         };
         await createAndSendCampaign(pushNotification);
+        await Operation.findByIdAndUpdate(operation._id, {
+          status: "rejected",
+        });
+        await operation.save();
         //Added return to stop the function execution
         return;
       }
