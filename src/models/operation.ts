@@ -73,7 +73,14 @@ const operationSchema = new Schema<env.Operation>(
     },
     status: {
       type: String,
-      enum: ["void", "pending", "approved", "completed", "rejected"],
+      enum: [
+        "void",
+        "pending",
+        "processing",
+        "approved",
+        "completed",
+        "rejected",
+      ],
       required: [true, "can't be blank"],
     },
     expireAt: {
