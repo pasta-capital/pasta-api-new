@@ -87,7 +87,7 @@ const operationSchema = new Schema<env.Operation>(
       type: Date,
       index: {
         name: OPERATION_EXPIRE_AT_INDEX_NAME,
-        expireAfterSeconds: env.OPERATION_EXPIRE_AT,
+        expireAfterSeconds: 0,
         background: true,
       },
     },
