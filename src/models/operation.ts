@@ -117,6 +117,7 @@ const operationSchema = new Schema<env.Operation>(
     laCopaso: String,
     userAgent: String,
     score: Number,
+    laStatus: String,
   },
   {
     timestamps: true,

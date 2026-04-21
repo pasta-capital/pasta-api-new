@@ -813,7 +813,10 @@ export const confirmOperation = asyncHandler(
           };
           await createAndSendCampaign(pushNotification);
           await Operation.findByIdAndUpdate(operation._id, {
-            $set: { status: "rejected" },
+            $set: {
+              status: "rejected",
+              laStatus: voidInsertOperation.success ? "voided" : "void_failed",
+            },
             $unset: { expireAt: 1 },
           });
 
@@ -975,14 +978,14 @@ export const confirmOperation = asyncHandler(
           FlEmi: iniDate,
           FlDisp: iniDate,
           Cuenta: "",
-          Concepto: "Comisión por desembolso",
+          Concepto: "",
           TpPaso: "E",
           Nunota: reference,
           Refer: transaction.data.ref_ibp ?? reference,
           Nurefer: "",
           Nucorre: 1,
           Fpago: 3,
-          Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
+          Monto: operation.amountVef.toFixed(2).replace(".", ","),
           Tpcambio: "1",
           Copaso: operation.laCopaso,
           Nupaso: 0,
@@ -1279,7 +1282,7 @@ export const getOperationDetails = asyncHandler(
       : [posiciones];
 
     const posicion = posicionesArray.find(
-      (p) => p.Refapertura === operation.reference,
+      (p) => p.Copasoapertura === operation.laCopaso,
     );
 
     // Extraer cuotas de la posición encontrada
@@ -1413,7 +1416,7 @@ export const getOperationDetailsById = asyncHandler(
       : [posiciones];
 
     const posicion = posicionesArray.find(
-      (p) => p.Refapertura === operation.reference,
+      (p) => p.Copasoapertura === operation.laCopaso,
     );
 
     // Extraer cuotas de la posición encontrada
@@ -1536,22 +1539,22 @@ export const getOperationPaymentsWithTotal = asyncHandler(
       ? posiciones
       : [posiciones];
 
-    const referencias = posicionesArray
-      .map((p) => p.Refapertura)
+    const copasoIds = posicionesArray
+      .map((p) => p.Copasoapertura)
       .filter((ref) => ref && ref.trim() !== "");
 
     // Buscar operaciones por referencia para obtener los iconos
     const operations = await Operation.find({
-      reference: { $in: referencias },
+      laCopaso: { $in: copasoIds },
     })
-      .select("reference icon")
+      .select("laCopaso icon")
       .lean();
 
     // Crear mapa de referencia -> icon
     const referenceToIconMap = new Map<string, string>();
     for (const op of operations) {
-      if (op.reference && op.icon) {
-        referenceToIconMap.set(op.reference, op.icon);
+      if (op.laCopaso && op.icon) {
+        referenceToIconMap.set(op.laCopaso, op.icon);
       }
     }
 
@@ -1566,8 +1569,8 @@ export const getOperationPaymentsWithTotal = asyncHandler(
       const cuotasArray = Array.isArray(cuotas) ? cuotas : [cuotas];
 
       // Obtener el icono de la operación si existe
-      const operationIcon = posicion.Refapertura
-        ? referenceToIconMap.get(posicion.Refapertura)
+      const operationIcon = posicion.Copasoapertura
+        ? referenceToIconMap.get(posicion.Copasoapertura)
         : null;
       const iconUrl = operationIcon
         ? // ? `${env.PUBLIC_API_URL}/icons/${operationIcon}-white.png`
@@ -1605,7 +1608,7 @@ export const getOperationPaymentsWithTotal = asyncHandler(
             statusName: getOperationPaymentStatusName(status),
             amountUsd: montoCuota,
             iconUrl: iconUrl,
-            operationReference: posicion.Refapertura,
+            operationReference: posicion.Copasoapertura,
           });
         }
       }

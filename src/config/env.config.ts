@@ -849,6 +849,7 @@ export interface Operation extends Document {
   userAgent: string;
   score: number;
   internalReference: string;
+  laStatus?: string;
 }
 
 /**
