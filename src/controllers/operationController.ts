@@ -749,7 +749,7 @@ export const confirmOperation = asyncHandler(
       let paymentSent = false;
       let alreadyVoided = false;
       try {
-        const maxRetries = 3;
+        const maxRetries = 4;
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           syncDebtPaymentsResult = await syncDebtPayments(
             String(operation._id),
@@ -984,7 +984,7 @@ export const confirmOperation = asyncHandler(
           Fpago: 3,
           Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
           Tpcambio: "1",
-          Copaso: "",
+          Copaso: operation.laCopaso,
           Nupaso: 0,
           Statusabono: 1,
           Statusliq: "B",
