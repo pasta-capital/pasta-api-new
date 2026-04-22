@@ -335,10 +335,11 @@ const sypagoFlow = async (operation: env.Operation) => {
     try {
       // We skip the credit() call and go straight to checking the result
       const transaction = await getTransactionResult(operation.sypagoId);
+      const transactionStatus = transaction.data?.status;
 
       if (
         transaction.success &&
-        transaction.data?.status === TransactionStatusCode.ACCP
+        transactionStatus === TransactionStatusCode.ACCP
       ) {
         loggers.operation("Guard: Previous transaction confirmed as SUCCESS.", {
           operationId: operation._id,
@@ -349,7 +350,18 @@ const sypagoFlow = async (operation: env.Operation) => {
         };
       }
 
-      // If it's still pending or rejected, we return false so the loop handles it normally
+      if (
+        transaction.success &&
+        transactionStatus === TransactionStatusCode.RJCT
+      ) {
+        return {
+          success: false,
+          isRejected: true,
+          message: getRejectedCodeDescription(transaction.data?.rejected_code),
+        };
+      }
+
+      // If it is still pending, we return false so the loop retries later.
       return {
         success: false,
         message: "Esperando confirmación de pago anterior",
@@ -684,6 +696,7 @@ export const processCyclicQueue = async () => {
       syncAttempts: { $lt: 4 },
     })
       .populate("user")
+      .populate("account.bank")
       .sort({ createdAt: 1 });
 
     if (queue.length === 0) return;
@@ -710,13 +723,17 @@ export const processCyclicQueue = async () => {
 
           if (!syncSuccess) {
             op.syncAttempts += 1;
+            op.lastSyncAttemptAt = today;
+
             if (op.syncAttempts >= 4) {
               await rejectOperation(
                 op,
                 "Falla tras 4 intentos de sincronización",
                 iniDate,
               );
+              continue; // avoid saving stale in-memory state over the rejection
             }
+
             await op.save();
             continue; // next user
           }
