@@ -39,7 +39,7 @@ if (
 
   // Start scheduler for scheduled notifications (runs every 60s by default)
   startNotificationScheduler();
-  // startDebtScheduler();
+  startDebtScheduler();
   startDailyPaymentNotificationsScheduler(86_400_000, {
     hour: Number(env.DAILY_PAYMENT_NOTIFICATIONS_HOUR),
     minute: Number(env.DAILY_PAYMENT_NOTIFICATIONS_MINUTE),

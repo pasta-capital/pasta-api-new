@@ -118,6 +118,13 @@ const operationSchema = new Schema<env.Operation>(
     userAgent: String,
     score: Number,
     laStatus: String,
+    syncAttempts: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    lastSyncAttemptAt: Date,
+    syncError: String,
   },
   {
     timestamps: true,

@@ -850,6 +850,9 @@ export interface Operation extends Document {
   score: number;
   internalReference: string;
   laStatus?: string;
+  syncAttempts: number;
+  lastSyncAttemptAt?: Date;
+  syncError?: string;
 }
 
 /**
