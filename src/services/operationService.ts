@@ -18,6 +18,39 @@ import {
   TransactionStatusCode,
 } from "./sypagoService";
 import { InsertPaymentData } from "../models/la/insertPaymentData";
+
+const getOperationReceiverData = (operation: env.Operation) => {
+  const accountType = !operation.isThirdParty ? "CNTA" : "CELE";
+  const accountNumber = !operation.isThirdParty
+    ? operation.account.number
+    : operation.beneficiary?.phone;
+  const bankCode = !operation.isThirdParty
+    ? operation.account.bank.code
+    : operation.beneficiary?.bankCode;
+
+  const identificationType = !operation.isThirdParty
+    ? operation.account.number === "00017495563424733075"
+      ? "V"
+      : operation.user.identificationType
+    : operation.beneficiary?.identificationType;
+  const document = !operation.isThirdParty
+    ? operation.account.number === "00017495563424733075"
+      ? "15854963"
+      : operation.user.document
+    : operation.beneficiary?.identificationNumber;
+
+  return {
+    name: operation.isThirdParty
+      ? operation.beneficiary?.name ||
+        `${operation.user.name} ${operation.user.lastname}`
+      : `${operation.user.name} ${operation.user.lastname}`,
+    accountType,
+    accountNumber,
+    bankCode,
+    identificationType,
+    document,
+  };
+};
 import { getActiveBankProvider, getBankCodeSettings } from "./bankProviders";
 
 export const getOperationPaymentsWithTotalService = async (
@@ -289,38 +322,6 @@ export const syncDebtPayments = async (operationId: string, rif: string) => {
 };
 
 /**
- * Sincroniza todas las operaciones pendientes de pagos
- */
-export const syncPendingDebts = async () => {
-  try {
-    // Buscar operaciones aprobadas que no tienen plan de pagos
-    const pendingOperations = await Operation.find({
-      status: "approved",
-      $or: [{ paymentPlan: { $exists: false } }, { paymentPlan: { $size: 0 } }],
-    }).populate("user");
-
-    if (pendingOperations.length === 0) return;
-
-    loggers.operation("Iniciando reintento de sincronización masiva", {
-      action: "sync_pending_debts",
-      count: pendingOperations.length,
-    });
-
-    for (const op of pendingOperations) {
-      const user = op.user as any;
-      if (user && user.identificationType && user.document) {
-        const rif = user.identificationType + user.document;
-        await syncDebtPayments(String(op._id), rif);
-      }
-    }
-  } catch (error: any) {
-    loggers.error("Error en syncPendingDebts", {
-      error: error.message,
-    });
-  }
-};
-
-/**
  * Realiza el flujo de transferencia de dinero a través de Sypago para una operación dada.
  */
 const sypagoFlow = async (operation: env.Operation) => {
@@ -371,24 +372,8 @@ const sypagoFlow = async (operation: env.Operation) => {
       return { success: false, message: `Error en Guard: ${error.message}` };
     }
   }
-  const type = !operation.isThirdParty ? "CNTA" : "CELE";
-  const number = !operation.isThirdParty
-    ? operation.account.number
-    : operation.beneficiary?.phone;
-  const bankCode = !operation.isThirdParty
-    ? operation.account.bank.code
-    : operation.beneficiary?.bankCode;
-
-  const identificationType = !operation.isThirdParty
-    ? operation.account.number === "00017495563424733075"
-      ? "V"
-      : operation.user.identificationType
-    : operation.beneficiary?.identificationType;
-  const document = !operation.isThirdParty
-    ? operation.account.number === "00017495563424733075"
-      ? "15854963"
-      : operation.user.document
-    : operation.beneficiary?.identificationNumber;
+  const { accountType, accountNumber, bankCode, identificationType, document } =
+    getOperationReceiverData(operation);
 
   const sypagoCreditBody = {
     internal_id: operation.internalReference,
@@ -413,8 +398,8 @@ const sypagoFlow = async (operation: env.Operation) => {
       },
       account: {
         bank_code: bankCode,
-        type: type,
-        number: number,
+        type: accountType,
+        number: accountNumber,
       },
     },
     concept: "Pago movil",
@@ -540,6 +525,186 @@ const sypagoFlow = async (operation: env.Operation) => {
     return { success: false, message: error.message, isRejected: true };
   }
 };
+
+// const bvcFlow = async (
+//   operation: env.Operation,
+// ): Promise<BankTransferFlowResult> => {
+//   const {
+//     name,
+//     accountType,
+//     accountNumber,
+//     bankCode,
+//     identificationType,
+//     document,
+//   } = getOperationReceiverData(operation);
+
+//   if (!accountNumber || !bankCode || !identificationType || !document) {
+//     return {
+//       success: false,
+//       isRejected: true,
+//       message: "Datos incompletos para procesar el pago con BVC",
+//     };
+//   }
+
+//   const beneficiaryId = `${identificationType}${document}`;
+//   const bvcInternalRef = createReference(
+//     beneficiaryId,
+//     operation.settledAmount,
+//     operation.internalReference,
+//   );
+//   const transactionDate = formatDdMmYyyy(operation.createdAt || new Date());
+
+//   try {
+//     const storedTx = await searchInternalRef(bvcInternalRef);
+//     const storedStatus = String(storedTx.status || "").toUpperCase();
+//     const storedBankReference = storedTx.rawInternalDoc?.bankReference;
+
+//     if (!operation.reference && storedBankReference) {
+//       operation.reference = storedBankReference;
+//       await operation.save();
+//     }
+
+//     if (storedStatus === "PAGADO") {
+//       return {
+//         success: true,
+//         refIbp: storedBankReference || operation.reference || bvcInternalRef,
+//       };
+//     }
+
+//     if (storedStatus === "RECHAZADO" || storedStatus === "KO") {
+//       return {
+//         success: false,
+//         isRejected: true,
+//         message:
+//           storedTx.rawInternalDoc?.rawResponse?.mensaje ||
+//           "Transacción rechazada por BVC",
+//       };
+//     }
+
+//     if (storedBankReference) {
+//       return await resolveBvcLookupStatus(
+//         operation,
+//         storedBankReference,
+//         transactionDate,
+//       );
+//     }
+//   } catch (error: any) {
+//     if (!String(error.message || "").includes("No transaction found")) {
+//       loggers.operation("BVC Flow - Error consultando tracking interno", {
+//         action: "confirm_operation",
+//         step: "bvc_internal_ref_lookup_error",
+//         operationId: operation._id,
+//         internalReference: bvcInternalRef,
+//         error: error.message,
+//       });
+//     }
+//   }
+
+//   loggers.operation("Confirm Operation - Iniciando crédito BVC", {
+//     action: "confirm_operation",
+//     step: "bvc_credit_start",
+//     userId: operation.user._id,
+//     operationId: operation._id,
+//     reference: operation.internalReference,
+//     beneficiaryBankCode: bankCode,
+//     accountType,
+//   });
+
+//   try {
+//     const creditTransaction = await executeImmediateCredit({
+//       transactionId: operation.internalReference,
+//       amount: operation.settledAmount,
+//       name,
+//       idType: identificationType,
+//       idNumber: document,
+//       accountType,
+//       accountNumber,
+//       bankCode,
+//       concept: "Pago movil",
+//     });
+
+//     const bankReference =
+//       creditTransaction.referenciaBVC || creditTransaction.data?.referenciaBVC;
+
+//     loggers.operation("Confirm Operation - Respuesta crédito BVC", {
+//       action: "confirm_operation",
+//       step: "bvc_credit_response",
+//       userId: operation.user._id,
+//       operationId: operation._id,
+//       status: creditTransaction.status,
+//       bankReference,
+//     });
+
+//     if (bankReference && operation.reference !== bankReference) {
+//       operation.reference = bankReference;
+//       await operation.save();
+//     }
+
+//     if (creditTransaction.status === "DUPLICATED") {
+//       const duplicatedStatus = String(
+//         creditTransaction.data?.status || "",
+//       ).toUpperCase();
+
+//       if (duplicatedStatus === "PAGADO") {
+//         return {
+//           success: true,
+//           refIbp: bankReference || operation.reference || bvcInternalRef,
+//         };
+//       }
+
+//       if (duplicatedStatus === "RECHAZADO" || duplicatedStatus === "KO") {
+//         return {
+//           success: false,
+//           isRejected: true,
+//           message: "Transacción rechazada por BVC",
+//         };
+//       }
+
+//       if (bankReference) {
+//         return await resolveBvcLookupStatus(
+//           operation,
+//           bankReference,
+//           transactionDate,
+//         );
+//       }
+
+//       return {
+//         success: false,
+//         message: "Esperando confirmación de pago anterior",
+//       };
+//     }
+
+//     if (creditTransaction.status === "INCIERTO") {
+//       return {
+//         success: false,
+//         message: "Esperando confirmación de pago anterior",
+//       };
+//     }
+
+//     if (creditTransaction.status !== "CARGADO") {
+//       return {
+//         success: false,
+//         isRejected: true,
+//         message: "Error inicial BVC",
+//       };
+//     }
+
+//     if (!bankReference) {
+//       return {
+//         success: false,
+//         message: "Esperando confirmación de pago anterior",
+//       };
+//     }
+
+//     return await resolveBvcLookupStatus(
+//       operation,
+//       bankReference,
+//       transactionDate,
+//     );
+//   } catch (error: any) {
+//     return { success: false, message: error.message, isRejected: true };
+//   }
+// };
 
 /**
  * Realiza el paso final de sincronización con LA Sistemas para registrar el pago (abono) de la operación
@@ -799,3 +964,35 @@ export const processCyclicQueue = async () => {
     loggers.error("Global Cyclic Queue Critical Error:", globalError.message);
   }
 };
+
+/**
+ * Sincroniza todas las operaciones pendientes de pagos
+ */
+// export const syncPendingDebts = async () => {
+//   try {
+//     // Buscar operaciones aprobadas que no tienen plan de pagos
+//     const pendingOperations = await Operation.find({
+//       status: "approved",
+//       $or: [{ paymentPlan: { $exists: false } }, { paymentPlan: { $size: 0 } }],
+//     }).populate("user");
+
+//     if (pendingOperations.length === 0) return;
+
+//     loggers.operation("Iniciando reintento de sincronización masiva", {
+//       action: "sync_pending_debts",
+//       count: pendingOperations.length,
+//     });
+
+//     for (const op of pendingOperations) {
+//       const user = op.user as any;
+//       if (user && user.identificationType && user.document) {
+//         const rif = user.identificationType + user.document;
+//         await syncDebtPayments(String(op._id), rif);
+//       }
+//     }
+//   } catch (error: any) {
+//     loggers.error("Error en syncPendingDebts", {
+//       error: error.message,
+//     });
+//   }
+// };
