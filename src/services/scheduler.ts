@@ -1,6 +1,6 @@
 import Notifications from "../models/Notifications";
 import { sendCampaign } from "./notificationService";
-import { processCyclicQueue, syncPendingDebts } from "./operationService";
+import { processCyclicQueue } from "./operationService";
 import { checkAndNotifyUpcomingPayments } from "./upcomingPaymentService";
 import { checkAndNotifyOverduePayments } from "./overduePaymentService";
 import { generateMonthlyHistory } from "./customerHistoryService";
