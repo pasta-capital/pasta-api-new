@@ -6,6 +6,7 @@ import {
   getActiveOperations,
   getOperationDetails,
   getOperationPaymentsWithTotal,
+  getOperationPaymentsHome,
   // getAccountChargeLink, // Banesco - ya no integrado
   payDebt,
   payDebtConfirmation,
@@ -553,6 +554,66 @@ router.get("/details/:operationId", getOperationDetails);
  *         description: No autorizado
  */
 router.get("/payments", getOperationPaymentsWithTotal);
+
+/**
+ * @swagger
+ * /operation/payments:
+ *   get:
+ *     tags: [Operations]
+ *     summary: Listar primeras 6 deudas del usuario y total pendiente
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Listado de 6 deudas y total pendiente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Listado de 6 deudas y total pendiente"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     operationPayments:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             example: "0126C21003721"
+ *                           date:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2026-03-08T04:00:00.000Z"
+ *                           status:
+ *                             type: string
+ *                             example: "pending"
+ *                           statusName:
+ *                             type: string
+ *                             example: "Pendiente"
+ *                           amountUsd:
+ *                             type: number
+ *                             example: 0.19
+ *                           iconUrl:
+ *                             type: string
+ *                             example: "https://apipasta.legendsoft.com/public/icons/sticks-white.png"
+ *                           operationReference:
+ *                             type: string
+ *                             example: "22131598"
+ *                           points:
+ *                             type: number
+ *                             example: 0.19
+ *       401:
+ *         description: No autorizado
+ */
+router.get("/payments/home", getOperationPaymentsHome);
 
 /**
  * @swagger
