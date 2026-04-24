@@ -1291,10 +1291,10 @@ export const getOperationPaymentsWithTotal = asyncHandler(
 
     // Paginación
     const totalCount = allPayments.length;
-    const paginatedPayments = allPayments.slice(
-      (page - 1) * limit,
-      page * limit,
-    );
+    const paginatedPayments =
+      limit === -1
+        ? allPayments
+        : allPayments.slice((page - 1) * limit, page * limit);
 
     // Calcular total pendiente desde los totales de LA o sumando manualmente
     let totalPendingAmountUsd = 0;
