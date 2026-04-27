@@ -221,7 +221,7 @@ export const syncDebtPayments = async (operationId: string, rif: string) => {
       });
       return false;
     }
-    console.log("Posición token:", posicionToken);
+    // console.log("Posición token:", posicionToken);
 
     const posicion = posicionesArray.find(
       (p: any) => String(p.Copasoapertura || "").trim() === posicionToken,

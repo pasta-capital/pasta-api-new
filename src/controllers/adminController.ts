@@ -21,6 +21,10 @@ import PushToken from "../models/PushToken";
 import Operation from "../models/operation";
 import { syncDebtPayments } from "../services/operationService";
 import * as loggers from "../common/logger";
+import {
+  getActiveBankSettings,
+  setActiveBank,
+} from "../services/bankProviders";
 
 /**
  * Login
@@ -667,5 +671,54 @@ export const manualSyncOperation = asyncHandler(
         error: error.message,
       });
     }
+  },
+);
+
+export const setActiveBankProvider = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bankCode } = req.body;
+
+    if (!bankCode || typeof bankCode !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "El campo bankCode es requerido.",
+        code: "field_missing",
+      });
+    }
+
+    try {
+      const result = await setActiveBank(bankCode);
+
+      loggers.info("Admin - Active bank provider updated", {
+        adminId: req.user?.id,
+        bankCode: result.code,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Proveedor bancario activo actualizado correctamente.",
+        data: {
+          bankCode: result.code,
+        },
+      });
+    } catch (error: any) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        code: "invalid_bank_code",
+      });
+    }
+  },
+);
+
+export const getActiveBankProviderSettings = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const data = await getActiveBankSettings();
+
+    return res.status(200).json({
+      success: true,
+      message: "Proveedor bancario activo obtenido correctamente.",
+      data,
+    });
   },
 );

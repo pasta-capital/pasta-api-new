@@ -17,6 +17,8 @@ import {
   unsubscribePush,
   generateToken,
   manualSyncOperation,
+  getActiveBankProviderSettings,
+  setActiveBankProvider,
 } from "../controllers/adminController";
 import { authorizeModules, verifyToken } from "../middlewares/authJwt";
 import { fileURLToPath } from "url";
@@ -408,4 +410,46 @@ routes.route("/generate-token").post(generateToken);
  *         description: Error interno durante la sincronización
  */
 routes.route("/manual-sync").post(manualSyncOperation);
+
+/**
+ * @swagger
+ * /admin/active-bank:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Obtener el proveedor bancario activo y los disponibles
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Proveedor bancario activo y listado de disponibles
+ *   post:
+ *     tags: [Admin]
+ *     summary: Cambiar el proveedor bancario activo
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [bankCode]
+ *             properties:
+ *               bankCode:
+ *                 type: string
+ *                 example: "0134"
+ *     responses:
+ *       200:
+ *         description: Proveedor bancario activo actualizado
+ *       400:
+ *         description: Código de banco inválido o faltante
+ *       401:
+ *         description: No autorizado
+ *       403:
+ *         description: Sin permisos
+ */
+routes
+  .route("/active-bank")
+  .get(getActiveBankProviderSettings)
+  .post(setActiveBankProvider);
+
 export default routes;
