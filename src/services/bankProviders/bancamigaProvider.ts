@@ -261,9 +261,9 @@ export const bancamigaProvider = {
         currency: "VES",
       },
     };
-    console.log("Requesting OTP with body", requestOtpBody);
+    // console.log("Requesting OTP with body", requestOtpBody);
     const respRequestOtp = await requestOtp(requestOtpBody);
-    console.log("OTP Response", respRequestOtp);
+    // console.log("OTP Response", respRequestOtp);
     return respRequestOtp;
   },
   debitConfirm: async (body: any, payment: any, userId?: string) => {
