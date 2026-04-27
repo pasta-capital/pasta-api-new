@@ -1,15 +1,15 @@
 import Notifications from "../models/Notifications";
 import { sendCampaign } from "./notificationService";
-import { syncPendingDebts } from "./operationService";
+import { processCyclicQueue, syncPendingDebts } from "./operationService";
 import { checkAndNotifyUpcomingPayments } from "./upcomingPaymentService";
 import { checkAndNotifyOverduePayments } from "./overduePaymentService";
 import { generateMonthlyHistory } from "./customerHistoryService";
-
+import * as loggers from "../common/logger";
 let notificationTimer: NodeJS.Timeout | null = null;
 let debtTimer: NodeJS.Timeout | null = null;
 let upcomingPaymentTimer: NodeJS.Timeout | null = null;
 let upcomingPaymentInitialTimeout: NodeJS.Timeout | null = null;
-
+let isProcessing = false;
 async function runDailyPaymentNotifications() {
   try {
     await checkAndNotifyUpcomingPayments();
@@ -63,15 +63,24 @@ export function stopNotificationScheduler() {
   notificationTimer = null;
 }
 
-export function startDebtScheduler(intervalMs = 300_000) {
-  // Every 5 minutes
+export function startDebtScheduler(intervalMs = 60_000) {
   if (debtTimer) return;
+
   debtTimer = setInterval(async () => {
+    if (isProcessing) {
+      loggers.operation(
+        "Debt Scheduler: Previous sweep still active, skipping tick.",
+      );
+      return;
+    }
     try {
-      await syncPendingDebts();
+      isProcessing = true;
+      console.log("Running Debt Scheduler...");
+      await processCyclicQueue(); //await syncPendingDebts();
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("Debt Scheduler error:", error);
+    } finally {
+      isProcessing = false;
     }
   }, intervalMs);
 }

@@ -16,6 +16,7 @@ import {
   subscribePush,
   unsubscribePush,
   generateToken,
+  manualSyncOperation,
 } from "../controllers/adminController";
 import { authorizeModules, verifyToken } from "../middlewares/authJwt";
 import { fileURLToPath } from "url";
@@ -379,4 +380,32 @@ routes.use(authorizeModules("all"));
  */
 routes.route("/generate-token").post(generateToken);
 
+/**
+ * @swagger
+ * /admin/manual-sync:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Sincronización manual de operaciones
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [operationId]
+ *             properties:
+ *               operationId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Sincronización completada exitosamente
+ *       400:
+ *         description: Datos de operación incompletos
+ *       404:
+ *         description: Operación no encontrada
+ *       500:
+ *         description: Error interno durante la sincronización
+ */
+routes.route("/manual-sync").post(manualSyncOperation);
 export default routes;

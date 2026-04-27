@@ -386,7 +386,7 @@ router.get("/active", getActiveOperations);
  *       401:
  *         description: No autorizado
  */
-router.post("/request", requestOperation);
+router.post("/request-v2", requestOperation);
 
 /**
  * @swagger
@@ -427,7 +427,7 @@ router.post("/request", requestOperation);
  *       401:
  *         description: No autorizado
  */
-router.post("/confirm", confirmOperation);
+router.post("/confirm-v2", confirmOperation);
 
 /**
  * @swagger

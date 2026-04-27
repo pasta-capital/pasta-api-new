@@ -176,10 +176,11 @@ export const findPaymentMobile = async (
     };
   }
 
+  const expectedAmount = Number(Number(body.amount).toFixed(2));
   const transaction = response.data.lista.find(
     (t: env.BancamigaPagoMovil) =>
       t.NroReferenciaCorto === body.reference &&
-      (t.Amount === body.amount || env.TESTING),
+      Number(Number(t.Amount).toFixed(2)) === expectedAmount,
   ) as env.BancamigaPagoMovil | undefined;
 
   if (!transaction) {

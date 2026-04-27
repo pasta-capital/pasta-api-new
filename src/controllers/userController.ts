@@ -309,9 +309,9 @@ export const getUser = asyncHandler(async (req: Request, res: Response) => {
   const rif =
     (results[0]?.identificationType ?? "") + (results[0]?.document ?? "");
   const debtResult = await consultDebt({ Rif: rif });
-  loggers.operation(
-    "Resultado de consultDebt para getUser:" + JSON.stringify(debtResult),
-  );
+  // loggers.operation(
+  //   "Resultado de consultDebt para getUser:" + JSON.stringify(debtResult),
+  // );
   let totalPendingAmount = 0;
   if (debtResult.success && debtResult.data?.Totales?.Totalpendiente) {
     totalPendingAmount = parseFloat(

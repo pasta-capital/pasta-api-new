@@ -29,15 +29,9 @@ import { requestOperationValidationSchema } from "../validations/operation/reque
 import { icons } from "../config/data/icons";
 import {
   credit,
-  debitOtp,
-  getRejectedCodeDescription,
-  getStatusDescription,
   getTransaction,
-  getTransactionResult,
   requestOtp,
-  TransactionStatusCode,
 } from "../services/sypagoService";
-import { findPaymentMobile } from "../services/bancamigaService";
 import { requestOtpValidationSchema } from "../validations/operation/requestOtp";
 import Balance from "../models/balance";
 import Account from "../models/Account";
@@ -57,6 +51,11 @@ import { InsertOperationData } from "../models/la/insertOperationData";
 import * as loggers from "../common/logger";
 import { getScore } from "../services/userService";
 import { InsertPaymentData } from "../models/la/insertPaymentData";
+import { createAndSendCampaign } from "../services/notificationService";
+import {
+  getActiveBankProvider,
+  getBankCodeSettings,
+} from "../services/bankProviders";
 
 /**
  * Request operation
@@ -123,6 +122,28 @@ export const requestOperation = asyncHandler(
         success: false,
         message: "No se encontró información del cliente",
         code: "not_found",
+      });
+    }
+
+    const activeOperation = await Operation.findOne({
+      user: req.user!.id,
+      status: { $in: ["processing"] },
+    });
+
+    if (activeOperation) {
+      loggers.operation("Request Operation - Bloqueado: Operación existente", {
+        action: "request_operation",
+        step: "validation_error",
+        userId: req.user!.id,
+        existingOperationId: activeOperation._id,
+        status: activeOperation.status,
+      });
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Ya tiene una operación en curso. Por favor, espere a que finalice para solicitar una nueva.",
+        code: "operation_in_progress",
       });
     }
 
@@ -223,7 +244,7 @@ export const requestOperation = asyncHandler(
       {
         $match: {
           user: new Types.ObjectId(req.user!.id),
-          status: { $nin: ["void", "paid"] },
+          status: { $nin: ["void", "processing", "paid"] },
         },
       },
       {
@@ -667,151 +688,7 @@ export const confirmOperation = asyncHandler(
         : operation.user.document
       : operation.beneficiary?.identificationNumber;
 
-    const sypagoCreditBody = {
-      internal_id: reference,
-      account: {
-        bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-        type: "CNTA",
-        number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-      },
-      sub_product: env.SYPAGO_CREDIT_SUBPRODUCT_ID!,
-      amount: {
-        amt: operation.settledAmount,
-        currency: "VES",
-      },
-      notification_urls: {
-        web_hook_endpoint: env.SYPAGO_WEBHOOK_URL!,
-      },
-      receiving_user: {
-        name: "Test User",
-        document_info: {
-          type: identificationType,
-          number: document,
-        },
-        account: {
-          bank_code: bankCode,
-          type: type,
-          number: number,
-        },
-      },
-      concept: "Pago movil",
-    };
-
-    loggers.operation("Confirm Operation - Iniciando crédito Sypago", {
-      action: "confirm_operation",
-      step: "sypago_credit_start",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      reference,
-      sypagoCreditBody: {
-        internal_id: sypagoCreditBody.internal_id,
-        amount: sypagoCreditBody.amount,
-        receiving_user: {
-          document_info: sypagoCreditBody.receiving_user.document_info,
-          account: {
-            bank_code: sypagoCreditBody.receiving_user.account.bank_code,
-            type: sypagoCreditBody.receiving_user.account.type,
-          },
-        },
-      },
-    });
-    /**CREDIT BEGIN */
-    const creditTransaction = await credit(sypagoCreditBody);
-
-    loggers.operation("Confirm Operation - Respuesta crédito Sypago", {
-      action: "confirm_operation",
-      step: "sypago_credit_response",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      success: creditTransaction.success,
-      transactionId: creditTransaction.data?.transaction_id,
-      message: creditTransaction.message,
-    });
-
-    if (!creditTransaction.success) {
-      loggers.operation("Confirm Operation - Error en crédito Sypago", {
-        action: "confirm_operation",
-        step: "sypago_credit_error",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        error: creditTransaction.message,
-        data: creditTransaction.data,
-      });
-      return res.status(400).json({
-        success: false,
-        message: "Error al generar la transacción",
-        code: "error",
-        error: creditTransaction.message,
-      });
-    }
-    operation.sypagoId = creditTransaction.data.transaction_id;
-
-    loggers.operation(
-      "Confirm Operation - Obteniendo resultado de transacción",
-      {
-        action: "confirm_operation",
-        step: "get_transaction_result_start",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        transactionId: creditTransaction.data.transaction_id,
-      },
-    );
-
-    /**GET SYPAGO TRANSACTION RESULT */
-    const transaction = await getTransactionResult(
-      creditTransaction.data.transaction_id,
-    );
-
-    loggers.operation("Confirm Operation - Resultado de transacción obtenido", {
-      action: "confirm_operation",
-      step: "get_transaction_result_response",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      success: transaction.success,
-      status: transaction.data?.status,
-      rejectedCode: transaction.data?.rejected_code,
-    });
-
-    if (!transaction.success) {
-      loggers.operation("Confirm Operation - Error obteniendo transacción", {
-        action: "confirm_operation",
-        step: "get_transaction_result_error",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        error: transaction.message,
-      });
-      return res.status(400).json({
-        success: false,
-        message: "Error al obtener la transacción",
-        code: "error",
-        error: transaction.message,
-      });
-    }
-
-    if (transaction.data.status !== TransactionStatusCode.ACCP) {
-      loggers.operation("Confirm Operation - Transacción rechazada", {
-        action: "confirm_operation",
-        step: "transaction_rejected",
-        userId: req.user!.id,
-        operationId: body.operationId,
-        status: transaction.data.status,
-        rejectedCode: transaction.data.rejected_code,
-        statusDescription: getStatusDescription(transaction.data.status),
-        rejectedDescription: getRejectedCodeDescription(
-          transaction.data.rejected_code,
-        ),
-      });
-      return res.status(400).json({
-        success: false,
-        message:
-          "La transacción no está aprobada - " +
-          getRejectedCodeDescription(transaction.data.rejected_code),
-        code: "error",
-        error: getStatusDescription(transaction.data.status),
-      });
-    }
-    /**CREDIT END */
-
+    // #TODO: BEGIN LA INSERT OPERATION
     const day = String(operation.createdAt.getDate()).padStart(2, "0");
     const month = String(operation.createdAt.getMonth() + 1).padStart(2, "0");
     const year = operation.createdAt.getFullYear();
@@ -831,12 +708,13 @@ export const confirmOperation = asyncHandler(
       Tpcambio: operation.rate.toString(),
       Tasa: operation.annualCommission.toString(),
       Fpago: "1",
-      Refer: transaction.data.ref_ibp ?? reference,
-      // Refer: "",
+      // Refer: transaction.data.ref_ibp ?? reference,
+      Refer: "",
       Tpint: "V",
       Numesa: "1",
       Nuveh: "1",
-      Nucorre: "1",
+      // Nucorre: "1",
+      Nucorre: "",
       Tipomm: "0",
       Copaso: "",
     };
@@ -846,87 +724,37 @@ export const confirmOperation = asyncHandler(
         error: insertOperationResult.message,
         data: insertOperationResult.data,
       });
-    }
 
-    const insertPaymentCommissionBody: InsertPaymentData = {
-      Rif: operation.user.identificationType + operation.user.document,
-      Val_gra: "G",
-      FlEmi: iniDate,
-      FlDisp: iniDate,
-      Cuenta: "",
-      Concepto: "Comisión por desembolso",
-      TpPaso: "E",
-      Nunota: reference,
-      Refer: transaction.data.ref_ibp ?? reference,
-      Nurefer: "",
-      Nucorre: 1,
-      Fpago: 3,
-      Monto: operation.commissionAmount.toFixed(2).replace(".", ","),
-      Tpcambio: "1",
-      Copaso: "",
-      Nupaso: 0,
-      Statusabono: 1,
-      Statusliq: "B",
-      Statusoper: "N",
-      Codcontrap: "640201",
-    };
-
-    const insertPaymentCommissionResult = await InsertPayment(
-      insertPaymentCommissionBody,
-    );
-    if (!insertPaymentCommissionResult.success) {
-      loggers.error("Error al insertar la comisión en LA", {
-        error: insertPaymentCommissionResult.message,
-        data: insertPaymentCommissionResult.data,
+      return res.status(400).json({
+        success: false,
+        message: `Error al insertar la operación en LA - /WInserta_transacMMCred: ${insertOperationResult.message}`,
+        code: "error",
+        error: insertOperationResult.error ?? "",
       });
     }
-
+    const userOperationCount = await Operation.countDocuments({
+      user: operation.user,
+      status: { $nin: ["void", "rejected"] },
+    });
+    operation.internalReference = reference;
     operation.laCopaso = insertOperationResult?.data?.Copaso ?? "";
     operation.internalReference = reference;
-    operation.sypagoId = transaction.data.transaction_id;
-    operation.reference = transaction.data.ref_ibp ?? reference;
-    operation.status = "approved";
-    operation.expireAt = undefined;
+    operation.laCopaso = insertOperationResult.data.Copaso;
+    operation.status = "processing";
+    operation.laStatus = "inserted"; // THE TRIGGER FOR THE SCHEDULER
+    operation.syncAttempts = 0;
     operation.comment = body.comment;
-    operation.icon = icons[operationCount % icons.length];
+    operation.icon = icons[userOperationCount % icons.length];
+
     await operation.save();
-    await updateCustomerStatusToActive(req.user!.id);
 
-    loggers.operation("Confirm Operation - Operación aprobada exitosamente", {
-      action: "confirm_operation",
-      step: "operation_approved",
-      userId: req.user!.id,
-      operationId: body.operationId,
-      operationData: {
-        status: operation.status,
-        reference: operation.reference,
-        sypagoId: operation.sypagoId,
-        laCopaso: operation.laCopaso,
-        icon: operation.icon,
-      },
-      transactionData: {
-        transactionId: transaction.data.transaction_id,
-        refIbp: transaction.data.ref_ibp,
-        status: transaction.data.status,
-      },
+    // 5. Final Response
+    // The Scheduler (processCyclicQueue) will take care of
+    // syncDebtPayments, SyPago, and Push Notifications.
+    return res.status(200).json({
+      success: true,
+      message: "Operación confirmada y en proceso de pago",
     });
-
-    // Sincronizar cuotas desde LA Sistemas (proceso en segundo plano o inmediato)
-    const rif = operation.user.identificationType + operation.user.document;
-    syncDebtPayments(String(operation._id), rif).then((success) => {
-      if (!success) {
-        loggers.operation(
-          "Sincronización inicial de deuda fallida, se reintentará mediante scheduler",
-          {
-            action: "confirm_operation",
-            step: "sync_debt_retry_scheduled",
-            operationId: operation._id,
-          },
-        );
-      }
-    });
-
-    res.status(200).json({ success: true, message: "Operación confirmada" });
   },
 );
 
@@ -1114,7 +942,7 @@ export const getOperationDetails = asyncHandler(
       : [posiciones];
 
     const posicion = posicionesArray.find(
-      (p) => p.Refapertura === operation.reference,
+      (p) => p.Copasoapertura === operation.laCopaso,
     );
 
     // Extraer cuotas de la posición encontrada
@@ -1248,7 +1076,7 @@ export const getOperationDetailsById = asyncHandler(
       : [posiciones];
 
     const posicion = posicionesArray.find(
-      (p) => p.Refapertura === operation.reference,
+      (p) => p.Copasoapertura === operation.laCopaso,
     );
 
     // Extraer cuotas de la posición encontrada
@@ -1371,22 +1199,22 @@ export const getOperationPaymentsWithTotal = asyncHandler(
       ? posiciones
       : [posiciones];
 
-    const referencias = posicionesArray
-      .map((p) => p.Refapertura)
+    const copasoIds = posicionesArray
+      .map((p) => p.Copasoapertura)
       .filter((ref) => ref && ref.trim() !== "");
 
     // Buscar operaciones por referencia para obtener los iconos
     const operations = await Operation.find({
-      reference: { $in: referencias },
+      laCopaso: { $in: copasoIds },
     })
-      .select("reference icon")
+      .select("laCopaso icon")
       .lean();
 
     // Crear mapa de referencia -> icon
     const referenceToIconMap = new Map<string, string>();
     for (const op of operations) {
-      if (op.reference && op.icon) {
-        referenceToIconMap.set(op.reference, op.icon);
+      if (op.laCopaso && op.icon) {
+        referenceToIconMap.set(op.laCopaso, op.icon);
       }
     }
 
@@ -1401,8 +1229,8 @@ export const getOperationPaymentsWithTotal = asyncHandler(
       const cuotasArray = Array.isArray(cuotas) ? cuotas : [cuotas];
 
       // Obtener el icono de la operación si existe
-      const operationIcon = posicion.Refapertura
-        ? referenceToIconMap.get(posicion.Refapertura)
+      const operationIcon = posicion.Copasoapertura
+        ? referenceToIconMap.get(posicion.Copasoapertura)
         : null;
       const iconUrl = operationIcon
         ? // ? `${env.PUBLIC_API_URL}/icons/${operationIcon}-white.png`
@@ -1440,7 +1268,7 @@ export const getOperationPaymentsWithTotal = asyncHandler(
             statusName: getOperationPaymentStatusName(status),
             amountUsd: montoCuota,
             iconUrl: iconUrl,
-            operationReference: posicion.Refapertura,
+            operationReference: posicion.Copasoapertura,
           });
         }
       }
@@ -1789,7 +1617,7 @@ export const getOperationPayments = asyncHandler(
 
 export const payDebt = asyncHandler(async (req: Request, res: Response) => {
   const { body } = req;
-
+  const manualRate = body.manualRate ? parseFloat(body.manualRate) : null;
   loggers.operation("Pay Debt - Inicio", {
     action: "pay_debt",
     step: "start",
@@ -1845,8 +1673,13 @@ export const payDebt = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  const rate = await getRateS();
-  const rateUsd = parseFloat(rate!.usd.toFixed(2));
+  let rateUsd: number;
+  if (manualRate) {
+    rateUsd = parseFloat(manualRate.toFixed(2));
+  } else {
+    const rate = await getRateS();
+    rateUsd = parseFloat(rate!.usd.toFixed(2));
+  }
 
   const expireAt = new Date();
   expireAt.setSeconds(expireAt.getSeconds() + env.OPERATION_EXPIRE_AT);
@@ -2062,19 +1895,13 @@ export const payDebtConfirmation = asyncHandler(
 
       let reference = body.reference;
       let referenceSmall = body.reference;
-      if (body.reference !== "000000" && env.TESTING) {
-        if (body.paymentType === "mobile" || body.paymentType === "transfer") {
-          const phone = body.phone.includes("58")
-            ? body.phone
-            : `58${body.phone.replace(/^0+/, "")}`;
+      const shouldSkipExternalValidation =
+        env.TESTING && body.reference === "000000";
 
-          const data = {
-            phone,
-            bank: body.bankCode,
-            date: body.date,
-            reference: body.reference,
-            amount: payment.amountVef,
-          } as env.BancamigaFindPaymentMobileBody;
+      if (!shouldSkipExternalValidation) {
+        if (body.paymentType === "mobile" || body.paymentType === "transfer") {
+          const code = await getBankCodeSettings();
+          const bank = await getActiveBankProvider(code);
 
           loggers.operation("Pay Debt Confirmation - Buscando pago móvil", {
             action: "pay_debt_confirmation",
@@ -2082,10 +1909,10 @@ export const payDebtConfirmation = asyncHandler(
             userId: req.user!.id,
             paymentId: body.id,
             paymentType: body.paymentType,
-            data,
+            bankCode: code,
           });
 
-          const resp = await findPaymentMobile(data);
+          const resp = await bank.checkStatusMobilePayment(body, payment);
 
           loggers.operation("Pay Debt Confirmation - Respuesta pago móvil", {
             action: "pay_debt_confirmation",
@@ -2118,178 +1945,38 @@ export const payDebtConfirmation = asyncHandler(
           reference = resp.data.NroReferencia;
           referenceSmall = resp.data.NroReferenciaCorto;
         } else if (body.paymentType === "debit") {
-          if (
-            !payment.debitorAccount?.bankCode ||
-            !payment.debitorAccount?.identificationNumber ||
-            !payment.debitorAccount?.phone
-          ) {
-            return res.status(400).json({
-              success: false,
-              message: "No se ha generado el código de OTP",
-              code: "otp_error",
-            });
-          }
-
-          const debitOtpBody: env.SypagoDebitOtpBody = {
-            internal_id: payment.internalReference,
-            account: {
-              bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-              type: "CNTA",
-              number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-            },
-            receiving_user: {
-              name: "Débito OTP",
-              otp: body.otp,
-              document_info: {
-                type: payment.debitorAccount.identificationType,
-                number: payment.debitorAccount.identificationNumber,
-              },
-              account: {
-                bank_code: payment.debitorAccount.bankCode,
-                type: "CELE",
-                number: payment.debitorAccount.phone,
-              },
-            },
-            amount: {
-              amt: payment.amountVef,
-              currency: "VES",
-            },
-            concept: "pago de cuota por debito OTP",
-            notification_urls: {
-              web_hook_endpoint: env.SYPAGO_WEBHOOK_URL!,
-            },
-          };
-
-          loggers.operation("Pay Debt Confirmation - Iniciando débito OTP", {
-            action: "pay_debt_confirmation",
-            step: "debit_otp_start",
-            userId: req.user!.id,
-            paymentId: body.id,
-            internalReference: payment.internalReference,
-            debitOtpBody: {
-              internal_id: debitOtpBody.internal_id,
-              amount: debitOtpBody.amount,
-              receiving_user: {
-                document_info: debitOtpBody.receiving_user.document_info,
-                account: {
-                  bank_code: debitOtpBody.receiving_user.account.bank_code,
-                  type: debitOtpBody.receiving_user.account.type,
-                },
-              },
-            },
-          });
-
-          const respDebitOtp = await debitOtp(debitOtpBody);
-
-          loggers.operation("Pay Debt Confirmation - Respuesta débito OTP", {
-            action: "pay_debt_confirmation",
-            step: "debit_otp_response",
-            userId: req.user!.id,
-            paymentId: body.id,
-            success: respDebitOtp.success,
-            transactionId: respDebitOtp.data?.transaction_id,
-            message: respDebitOtp.message,
-          });
-
-          if (!respDebitOtp.success) {
-            loggers.operation("Pay Debt Confirmation - Error en débito OTP", {
-              action: "pay_debt_confirmation",
-              step: "debit_otp_error",
-              userId: req.user!.id,
-              paymentId: body.id,
-              error: respDebitOtp.message,
-            });
-            return res.status(400).json({
-              success: false,
-              message: `Error al ejecutar el pago - ${respDebitOtp.message}`,
-              code: "payment_error",
-            });
-          }
-
-          loggers.operation(
-            "Pay Debt Confirmation - Obteniendo resultado transacción",
-            {
-              action: "pay_debt_confirmation",
-              step: "get_transaction_result_start",
-              userId: req.user!.id,
-              paymentId: body.id,
-              transactionId: respDebitOtp.data.transaction_id,
-            },
+          const code = await getBankCodeSettings();
+          const bank = await getActiveBankProvider(code);
+          const respDebitConfirm = await bank.debitConfirm(
+            body,
+            payment,
+            req.user!.id,
           );
 
-          const transaction = await getTransactionResult(
-            respDebitOtp.data.transaction_id,
-          );
+          if (!respDebitConfirm.success) {
+            if (respDebitConfirm.reference) {
+              payment.reference = respDebitConfirm.reference;
+            }
+            if (respDebitConfirm.code === "error") {
+              payment.status = "error";
+              payment.errorMessage =
+                respDebitConfirm.error || respDebitConfirm.message;
+              payment.expireAt = undefined;
+              await payment.save();
+            }
 
-          loggers.operation(
-            "Pay Debt Confirmation - Resultado transacción obtenido",
-            {
-              action: "pay_debt_confirmation",
-              step: "get_transaction_result_response",
-              userId: req.user!.id,
-              paymentId: body.id,
-              success: transaction.success,
-              status: transaction.data?.status,
-              rejectedCode: transaction.data?.rejected_code,
-            },
-          );
-
-          if (!transaction.success) {
-            loggers.operation(
-              "Pay Debt Confirmation - Error obteniendo transacción",
-              {
-                action: "pay_debt_confirmation",
-                step: "get_transaction_result_error",
-                userId: req.user!.id,
-                paymentId: body.id,
-                error: transaction.message,
-              },
-            );
-            payment.status = "error";
-            payment.errorMessage =
-              transaction.message || "Error al obtener la transacción de pago";
-            payment.reference = respDebitOtp.data.transaction_id;
-            payment.expireAt = undefined;
-            await payment.save();
             return res.status(400).json({
               success: false,
-              message: "Error al obtener la transacción de pago",
-              code: "error",
-              error: transaction.message,
+              message: respDebitConfirm.message,
+              code: respDebitConfirm.code || "payment_error",
+              ...(respDebitConfirm.error
+                ? { error: respDebitConfirm.error }
+                : {}),
             });
           }
 
-          if (transaction.data.status !== TransactionStatusCode.ACCP) {
-            const rejectedMsg =
-              "La transacción de pago no está aprobada - " +
-              getRejectedCodeDescription(transaction.data.rejected_code);
-            loggers.operation("Pay Debt Confirmation - Transacción rechazada", {
-              action: "pay_debt_confirmation",
-              step: "transaction_rejected",
-              userId: req.user!.id,
-              paymentId: body.id,
-              status: transaction.data.status,
-              rejectedCode: transaction.data.rejected_code,
-              statusDescription: getStatusDescription(transaction.data.status),
-              rejectedDescription: getRejectedCodeDescription(
-                transaction.data.rejected_code,
-              ),
-            });
-            payment.status = "error";
-            payment.errorMessage = rejectedMsg;
-            payment.reference = respDebitOtp.data.transaction_id;
-            payment.expireAt = undefined;
-            await payment.save();
-            return res.status(400).json({
-              success: false,
-              message: rejectedMsg,
-              code: "error",
-              error: getStatusDescription(transaction.data.status),
-            });
-          }
-
-          reference = transaction.data.ref_ibp;
-          referenceSmall = transaction.data.ref_ibp.slice(-6);
+          reference = respDebitConfirm.reference;
+          referenceSmall = respDebitConfirm.referenceSmall;
         }
       }
 
@@ -2584,28 +2271,9 @@ export const requestSypagoOtp = asyncHandler(
       });
     }
 
-    const requestOtpBody: env.SypagoRequestOtpBody = {
-      creditor_account: {
-        bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-        type: "CNTA",
-        number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-      },
-      debitor_document_info: {
-        type: body.identificationType,
-        number: body.identificationNumber,
-      },
-      debitor_account: {
-        bank_code: body.bankCode,
-        type: "CELE",
-        number: body.phone,
-      },
-      amount: {
-        amt: payment.amountVef,
-        currency: "VES",
-      },
-    };
-    const respRequestOtp = await requestOtp(requestOtpBody);
-
+    const code = await getBankCodeSettings();
+    const bank = await getActiveBankProvider(code);
+    const respRequestOtp = await bank.debitRequest(body, payment);
     if (!respRequestOtp.success) {
       loggers.operation("Request Sypago OTP - Error al generar el código OTP", {
         action: "request_sypago_otp",
@@ -2755,6 +2423,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
   const globalFilter = req.query.globalFilter as string;
   const startDateParam = req.query.startDate as string;
   const endDateParam = req.query.endDate as string;
+  const statusFilter = req.query.status as string;
   const skip = (page - 1) * limit;
 
   const filter: any = {};
@@ -2772,6 +2441,11 @@ export const getAllOperations = async (req: Request, res: Response) => {
       filter.createdAt = { ...filter.createdAt, $lte: endDate };
     }
   }
+
+  if (statusFilter) {
+    filter.status = statusFilter;
+  }
+
   if (globalFilter) {
     // Create a case-insensitive regular expression for the search term
     const regex = new RegExp(globalFilter, "i");
@@ -2823,6 +2497,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
               rate: 1,
               status: 1,
               reference: 1,
+              icon: 1,
               user: {
                 _id: "$userData._id",
                 fullName: "$userData.fullName",
@@ -2845,6 +2520,7 @@ export const getAllOperations = async (req: Request, res: Response) => {
       reference: operation.reference,
       createdAt: operation.createdAt,
       amount: operation.amountUsd,
+      icon: operation.icon,
       status: {
         id: operation.status,
         name: getOperationStatusName(operation.status),

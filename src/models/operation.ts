@@ -73,14 +73,21 @@ const operationSchema = new Schema<env.Operation>(
     },
     status: {
       type: String,
-      enum: ["void", "pending", "approved", "completed", "rejected"],
+      enum: [
+        "void",
+        "pending",
+        "processing",
+        "approved",
+        "completed",
+        "rejected",
+      ],
       required: [true, "can't be blank"],
     },
     expireAt: {
       type: Date,
       index: {
         name: OPERATION_EXPIRE_AT_INDEX_NAME,
-        expireAfterSeconds: env.OPERATION_EXPIRE_AT,
+        expireAfterSeconds: 0,
         background: true,
       },
     },
@@ -110,6 +117,14 @@ const operationSchema = new Schema<env.Operation>(
     laCopaso: String,
     userAgent: String,
     score: Number,
+    laStatus: String,
+    syncAttempts: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    lastSyncAttemptAt: Date,
+    syncError: String,
   },
   {
     timestamps: true,

@@ -16,8 +16,11 @@ import {
 } from "../common/templates";
 import { fileURLToPath } from "url";
 import path from "path";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import PushToken from "../models/PushToken";
+import Operation from "../models/operation";
+import { syncDebtPayments } from "../services/operationService";
+import * as loggers from "../common/logger";
 
 /**
  * Login
@@ -555,5 +558,114 @@ export const generateToken = asyncHandler(
       message: "Token generated successfully",
       data: { token },
     });
+  },
+);
+
+export const manualSyncOperation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { operationId } = req.body;
+
+    // Try finding WITHOUT populate first to see if the operation itself exists
+    const rawOperation = await Operation.findById(operationId);
+
+    if (!rawOperation) {
+      loggers.error("Manual Sync - Operación no encontrada", { operationId });
+      return res.status(404).json({
+        success: false,
+        message: `La operación con ID ${operationId} no existe en la base de datos.`,
+      });
+    }
+
+    // Now try to populate
+    const operation = await rawOperation.populate("user");
+    if (!operation.user) {
+      loggers.error("Manual Sync - Usuario no encontrado para esta operación", {
+        userId: rawOperation.user,
+      });
+      return res.status(400).json({
+        success: false,
+        message: "El usuario asociado a la operación no existe.",
+      });
+    }
+
+    const rif =
+      (operation.user as any).identificationType +
+      (operation.user as any).document;
+    const reference = operation.reference || operation.internalReference;
+
+    loggers.operation("Manual Sync - [STEP 2] Data Validation", {
+      operationId: operation._id,
+      rif,
+      reference,
+      user: operation.user,
+    });
+
+    if (!rif || !reference) {
+      loggers.error(
+        "Manual Sync - [ERROR] Missing RIF or Reference for external lookup",
+        { rif, reference },
+      );
+      return res.status(400).json({
+        success: false,
+        message: "Datos de operación incompletos (RIF o Referencia faltante).",
+      });
+    }
+
+    // STEP 3: Execute Sync Logic
+    loggers.operation(
+      "Manual Sync - [STEP 3] Calling syncDebtPayments Service",
+      { operationId: operation._id },
+    );
+
+    try {
+      const success = await syncDebtPayments(String(operation._id), rif);
+
+      if (success) {
+        loggers.operation(
+          "Manual Sync - [SUCCESS] Synchronization Finished Successfully",
+          {
+            operationId: operation._id,
+            rif,
+          },
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: "Sincronización completada exitosamente.",
+          data: {
+            operationId: operation._id,
+            reference: reference,
+          },
+        });
+      } else {
+        // STEP 4: Handle Logical Failure (e.g., LA Sistemas didn't have the record yet)
+        loggers.info("Manual Sync - [FAILED] Service returned false", {
+          operationId: operation._id,
+        });
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "La sincronización falló. Es posible que el registro aún no aparezca en LA Sistemas.",
+          code: "sync_service_returned_false",
+        });
+      }
+    } catch (error: any) {
+      // STEP 5: Handle Unexpected Errors
+      loggers.error(
+        "Manual Sync - [CRITICAL ERROR] Exception during manual sync",
+        {
+          operationId: operation._id,
+          error: error.message,
+          stack: error.stack,
+        },
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Error interno durante la sincronización.",
+        error: error.message,
+      });
+    }
   },
 );

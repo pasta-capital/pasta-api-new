@@ -10,6 +10,7 @@ export const payDebtValidationSchema = Joi.object({
     "array.base": 'El campo "payments" debe ser un array',
     "array.items": 'El campo "payments" debe contener al menos un elemento',
   }),
+  manualRate: Joi.string().optional(),
 });
 
 export const payDebtConfirmationValidationSchema = Joi.object({

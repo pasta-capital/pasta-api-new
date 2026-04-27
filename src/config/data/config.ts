@@ -75,8 +75,15 @@ export default [
   },
   {
     key: "upcoming-payment-notification-days",
-    description: "Días antes del vencimiento para enviar notificaciones de cuotas próximas",
+    description:
+      "Días antes del vencimiento para enviar notificaciones de cuotas próximas",
     value: [7, 3, 1, 0],
     type: "array",
+  },
+  {
+    key: "active-bank-code",
+    description: "Código del banco activo para desembolso y recibo de pagos",
+    value: "0172",
+    type: "string",
   },
 ];

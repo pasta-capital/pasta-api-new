@@ -275,7 +275,6 @@ routes.route("/login").post(login);
  *         description: Error de validación
  */
 routes.route("/register").post(register);
-
 /**
  * @swagger
  * /users/forgot-password:
