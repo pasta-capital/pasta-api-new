@@ -29,15 +29,9 @@ import { requestOperationValidationSchema } from "../validations/operation/reque
 import { icons } from "../config/data/icons";
 import {
   credit,
-  debitOtp,
-  getRejectedCodeDescription,
-  getStatusDescription,
   getTransaction,
-  getTransactionResult,
   requestOtp,
-  TransactionStatusCode,
 } from "../services/sypagoService";
-import { findPaymentMobile } from "../services/bancamigaService";
 import { requestOtpValidationSchema } from "../validations/operation/requestOtp";
 import Balance from "../models/balance";
 import Account from "../models/Account";
@@ -58,6 +52,10 @@ import * as loggers from "../common/logger";
 import { getScore } from "../services/userService";
 import { InsertPaymentData } from "../models/la/insertPaymentData";
 import { createAndSendCampaign } from "../services/notificationService";
+import {
+  getActiveBankProvider,
+  getBankCodeSettings,
+} from "../services/bankProviders";
 
 /**
  * Request operation
@@ -751,7 +749,7 @@ export const confirmOperation = asyncHandler(
     await operation.save();
 
     // 5. Final Response
-    // We stop here. The Scheduler (processCyclicQueue) will take care of
+    // The Scheduler (processCyclicQueue) will take care of
     // syncDebtPayments, SyPago, and Push Notifications.
     return res.status(200).json({
       success: true,
@@ -1902,21 +1900,8 @@ export const payDebtConfirmation = asyncHandler(
 
       if (!shouldSkipExternalValidation) {
         if (body.paymentType === "mobile" || body.paymentType === "transfer") {
-          const phone = body.phone.startsWith("58")
-            ? body.phone
-            : `58${body.phone.replace(/^0+/, "")}`;
-          loggers.bancamiga("Pay Debt Confirmation - Phone AFTER CLEANUP", {
-            action: "pay_debt_confirmation",
-            step: "phone_cleanup",
-            phone: phone,
-          });
-          const data = {
-            phone,
-            bank: body.bankCode,
-            date: body.date,
-            reference: body.reference,
-            amount: payment.amountVef,
-          } as env.BancamigaFindPaymentMobileBody;
+          const code = await getBankCodeSettings();
+          const bank = await getActiveBankProvider(code);
 
           loggers.operation("Pay Debt Confirmation - Buscando pago móvil", {
             action: "pay_debt_confirmation",
@@ -1924,10 +1909,10 @@ export const payDebtConfirmation = asyncHandler(
             userId: req.user!.id,
             paymentId: body.id,
             paymentType: body.paymentType,
-            data,
+            bankCode: code,
           });
 
-          const resp = await findPaymentMobile(data);
+          const resp = await bank.checkStatusMobilePayment(body, payment);
 
           loggers.operation("Pay Debt Confirmation - Respuesta pago móvil", {
             action: "pay_debt_confirmation",
@@ -1960,178 +1945,38 @@ export const payDebtConfirmation = asyncHandler(
           reference = resp.data.NroReferencia;
           referenceSmall = resp.data.NroReferenciaCorto;
         } else if (body.paymentType === "debit") {
-          if (
-            !payment.debitorAccount?.bankCode ||
-            !payment.debitorAccount?.identificationNumber ||
-            !payment.debitorAccount?.phone
-          ) {
-            return res.status(400).json({
-              success: false,
-              message: "No se ha generado el código de OTP",
-              code: "otp_error",
-            });
-          }
-
-          const debitOtpBody: env.SypagoDebitOtpBody = {
-            internal_id: payment.internalReference,
-            account: {
-              bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-              type: "CNTA",
-              number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-            },
-            receiving_user: {
-              name: "Débito OTP",
-              otp: body.otp,
-              document_info: {
-                type: payment.debitorAccount.identificationType,
-                number: payment.debitorAccount.identificationNumber,
-              },
-              account: {
-                bank_code: payment.debitorAccount.bankCode,
-                type: "CELE",
-                number: payment.debitorAccount.phone,
-              },
-            },
-            amount: {
-              amt: payment.amountVef,
-              currency: "VES",
-            },
-            concept: "pago de cuota por debito OTP",
-            notification_urls: {
-              web_hook_endpoint: env.SYPAGO_WEBHOOK_URL!,
-            },
-          };
-
-          loggers.operation("Pay Debt Confirmation - Iniciando débito OTP", {
-            action: "pay_debt_confirmation",
-            step: "debit_otp_start",
-            userId: req.user!.id,
-            paymentId: body.id,
-            internalReference: payment.internalReference,
-            debitOtpBody: {
-              internal_id: debitOtpBody.internal_id,
-              amount: debitOtpBody.amount,
-              receiving_user: {
-                document_info: debitOtpBody.receiving_user.document_info,
-                account: {
-                  bank_code: debitOtpBody.receiving_user.account.bank_code,
-                  type: debitOtpBody.receiving_user.account.type,
-                },
-              },
-            },
-          });
-
-          const respDebitOtp = await debitOtp(debitOtpBody);
-
-          loggers.operation("Pay Debt Confirmation - Respuesta débito OTP", {
-            action: "pay_debt_confirmation",
-            step: "debit_otp_response",
-            userId: req.user!.id,
-            paymentId: body.id,
-            success: respDebitOtp.success,
-            transactionId: respDebitOtp.data?.transaction_id,
-            message: respDebitOtp.message,
-          });
-
-          if (!respDebitOtp.success) {
-            loggers.operation("Pay Debt Confirmation - Error en débito OTP", {
-              action: "pay_debt_confirmation",
-              step: "debit_otp_error",
-              userId: req.user!.id,
-              paymentId: body.id,
-              error: respDebitOtp.message,
-            });
-            return res.status(400).json({
-              success: false,
-              message: `Error al ejecutar el pago - ${respDebitOtp.message}`,
-              code: "payment_error",
-            });
-          }
-
-          loggers.operation(
-            "Pay Debt Confirmation - Obteniendo resultado transacción",
-            {
-              action: "pay_debt_confirmation",
-              step: "get_transaction_result_start",
-              userId: req.user!.id,
-              paymentId: body.id,
-              transactionId: respDebitOtp.data.transaction_id,
-            },
+          const code = await getBankCodeSettings();
+          const bank = await getActiveBankProvider(code);
+          const respDebitConfirm = await bank.debitConfirm(
+            body,
+            payment,
+            req.user!.id,
           );
 
-          const transaction = await getTransactionResult(
-            respDebitOtp.data.transaction_id,
-          );
+          if (!respDebitConfirm.success) {
+            if (respDebitConfirm.reference) {
+              payment.reference = respDebitConfirm.reference;
+            }
+            if (respDebitConfirm.code === "error") {
+              payment.status = "error";
+              payment.errorMessage =
+                respDebitConfirm.error || respDebitConfirm.message;
+              payment.expireAt = undefined;
+              await payment.save();
+            }
 
-          loggers.operation(
-            "Pay Debt Confirmation - Resultado transacción obtenido",
-            {
-              action: "pay_debt_confirmation",
-              step: "get_transaction_result_response",
-              userId: req.user!.id,
-              paymentId: body.id,
-              success: transaction.success,
-              status: transaction.data?.status,
-              rejectedCode: transaction.data?.rejected_code,
-            },
-          );
-
-          if (!transaction.success) {
-            loggers.operation(
-              "Pay Debt Confirmation - Error obteniendo transacción",
-              {
-                action: "pay_debt_confirmation",
-                step: "get_transaction_result_error",
-                userId: req.user!.id,
-                paymentId: body.id,
-                error: transaction.message,
-              },
-            );
-            payment.status = "error";
-            payment.errorMessage =
-              transaction.message || "Error al obtener la transacción de pago";
-            payment.reference = respDebitOtp.data.transaction_id;
-            payment.expireAt = undefined;
-            await payment.save();
             return res.status(400).json({
               success: false,
-              message: "Error al obtener la transacción de pago",
-              code: "error",
-              error: transaction.message,
+              message: respDebitConfirm.message,
+              code: respDebitConfirm.code || "payment_error",
+              ...(respDebitConfirm.error
+                ? { error: respDebitConfirm.error }
+                : {}),
             });
           }
 
-          if (transaction.data.status !== TransactionStatusCode.ACCP) {
-            const rejectedMsg =
-              "La transacción de pago no está aprobada - " +
-              getRejectedCodeDescription(transaction.data.rejected_code);
-            loggers.operation("Pay Debt Confirmation - Transacción rechazada", {
-              action: "pay_debt_confirmation",
-              step: "transaction_rejected",
-              userId: req.user!.id,
-              paymentId: body.id,
-              status: transaction.data.status,
-              rejectedCode: transaction.data.rejected_code,
-              statusDescription: getStatusDescription(transaction.data.status),
-              rejectedDescription: getRejectedCodeDescription(
-                transaction.data.rejected_code,
-              ),
-            });
-            payment.status = "error";
-            payment.errorMessage = rejectedMsg;
-            payment.reference = respDebitOtp.data.transaction_id;
-            payment.expireAt = undefined;
-            await payment.save();
-            return res.status(400).json({
-              success: false,
-              message: rejectedMsg,
-              code: "error",
-              error: getStatusDescription(transaction.data.status),
-            });
-          }
-
-          reference = transaction.data.ref_ibp;
-          referenceSmall = transaction.data.ref_ibp.slice(-6);
+          reference = respDebitConfirm.reference;
+          referenceSmall = respDebitConfirm.referenceSmall;
         }
       }
 
@@ -2426,28 +2271,9 @@ export const requestSypagoOtp = asyncHandler(
       });
     }
 
-    const requestOtpBody: env.SypagoRequestOtpBody = {
-      creditor_account: {
-        bank_code: env.SYPAGO_BANK_ACCOUNT_CODE!,
-        type: "CNTA",
-        number: env.SYPAGO_BANK_ACCOUNT_NUMBER!,
-      },
-      debitor_document_info: {
-        type: body.identificationType,
-        number: body.identificationNumber,
-      },
-      debitor_account: {
-        bank_code: body.bankCode,
-        type: "CELE",
-        number: body.phone,
-      },
-      amount: {
-        amt: payment.amountVef,
-        currency: "VES",
-      },
-    };
-    const respRequestOtp = await requestOtp(requestOtpBody);
-
+    const code = await getBankCodeSettings();
+    const bank = await getActiveBankProvider(code);
+    const respRequestOtp = await bank.debitRequest(body, payment);
     if (!respRequestOtp.success) {
       loggers.operation("Request Sypago OTP - Error al generar el código OTP", {
         action: "request_sypago_otp",

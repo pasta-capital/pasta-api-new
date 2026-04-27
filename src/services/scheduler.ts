@@ -75,7 +75,7 @@ export function startDebtScheduler(intervalMs = 60_000) {
     }
     try {
       isProcessing = true;
-      // console.log("Running Debt Scheduler...");
+      console.log("Running Debt Scheduler...");
       await processCyclicQueue(); //await syncPendingDebts();
     } catch (error) {
       console.error("Debt Scheduler error:", error);
