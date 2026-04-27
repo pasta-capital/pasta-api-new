@@ -18,6 +18,7 @@ import {
   TransactionStatusCode,
 } from "./sypagoService";
 import { InsertPaymentData } from "../models/la/insertPaymentData";
+import { getActiveBankProvider, getBankCodeSettings } from "./bankProviders";
 
 const getOperationReceiverData = (operation: env.Operation) => {
   const accountType = !operation.isThirdParty ? "CNTA" : "CELE";
@@ -907,8 +908,10 @@ export const processCyclicQueue = async () => {
           await op.save();
         }
 
-        // --- STEP 2: BANK FLOW (Money Transfer) ---
-        const paymentResult = await sypagoFlow(op);
+        // --- STEP 2: Pay through available bank provider ---
+        const bankCode = await getBankCodeSettings();
+        const bank = await getActiveBankProvider(bankCode);
+        const paymentResult = await bank.immediateCredit(op);
         if (!paymentResult.success) {
           if (paymentResult.isRejected) {
             await rejectOperation(

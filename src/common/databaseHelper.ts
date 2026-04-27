@@ -23,6 +23,8 @@ import AdminAccount from "../models/adminAccount";
 import Balance from "../models/balance";
 import OperationPayment from "../models/operationPayment";
 import Config from "../models/config";
+import { BankOperation, IBankOperation } from "../BVC/models/operation";
+import { BankLog, IBankLog } from "../BVC/models/logs";
 import Subscription from "../models/subscription";
 import SubscriptionPayment from "../models/subscriptionPayment";
 import BanescoTransaction from "../models/banescoTransaction";
@@ -126,6 +128,8 @@ export const init = async (): Promise<boolean> => {
       await createCollection<env.BancamigaPagoMovil>(bancamigaPagoMovil);
       await createCollection<env.Location>(Location);
       await createCollection<env.LaModel>(LaModel);
+      await createCollection<IBankOperation>(BankOperation);
+      await createCollection<IBankLog>(BankLog);
       await seedBanks();
       await seedCreditScore();
       await seedRoles();
