@@ -13,18 +13,18 @@ import {
 
 export const bancamigaProvider = {
   immediateCredit: async (operation: env.Operation) => {
-    if (operation.sypagoId) {
+    if (operation.bankTxId) {
       loggers.operation(
         "Guard: Sypago ID already exists. Skipping credit request, verifying status.",
         {
           operationId: operation._id,
-          sypagoId: operation.sypagoId,
+          bankTxId: operation.bankTxId,
         },
       );
 
       try {
         // We skip the credit() call and go straight to checking the result
-        const transaction = await getTransactionResult(operation.sypagoId);
+        const transaction = await getTransactionResult(operation.bankTxId);
         const transactionStatus = transaction.data?.status;
 
         if (
@@ -164,7 +164,7 @@ export const bancamigaProvider = {
         };
       }
 
-      operation.sypagoId = creditTransaction.data.transaction_id;
+      operation.bankTxId = creditTransaction.data.transaction_id;
       await operation.save();
 
       loggers.operation(

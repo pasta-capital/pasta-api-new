@@ -866,7 +866,7 @@ export interface Operation extends Document {
     number: string;
   };
   banescoVuelto: Types.ObjectId;
-  sypagoId: string;
+  bankTxId: string;
   icon: string;
   laCopaso: string;
   laNumerots: string;

@@ -113,7 +113,7 @@ const operationSchema = new Schema<env.Operation>(
     },
     icon: String,
     internalReference: String,
-    sypagoId: String,
+    bankTxId: String,
     laCopaso: String,
     userAgent: String,
     score: Number,
