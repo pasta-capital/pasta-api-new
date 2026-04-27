@@ -453,7 +453,7 @@ export const template = (children: string) => `
             <tr>
               <td align="center" style="padding: 24px 24px 0 24px">
                 <img
-                  src="https://apipasta.legendsoft.com/public/img/logo_pasta.png"
+                  src="https://api.pidepasta.com/public/img/logo_pasta.png"
                   width="120"
                   height="auto"
                   alt="Pasta"
@@ -472,7 +472,7 @@ export const template = (children: string) => `
             <tr>
               <td align="center" style="padding: 16px 24px 0 24px">
                 <img
-                  src="https://apipasta.legendsoft.com/public/img/email-img.png"
+                  src="https://api.pidepasta.com/public/img/email-img.png"
                   width="552"
                   alt="Restablece tu contraseña"
                   class="responsive-img"
@@ -566,7 +566,7 @@ export const template = (children: string) => `
                               style="text-decoration: none; margin-left: 8px"
                             >
                               <img
-                                src="https://apipasta.legendsoft.com/public/img/instagram.png"
+                                src="https://api.pidepasta.com/public/img/instagram.png"
                                 width="20"
                                 height="20"
                                 alt="Instagram"

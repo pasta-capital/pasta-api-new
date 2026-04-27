@@ -1289,10 +1289,10 @@ export const getOperationPaymentsWithTotal = asyncHandler(
 
     // Paginación
     const totalCount = allPayments.length;
-    const paginatedPayments = allPayments.slice(
-      (page - 1) * limit,
-      page * limit,
-    );
+    const paginatedPayments =
+      limit === -1
+        ? allPayments
+        : allPayments.slice((page - 1) * limit, page * limit);
 
     // Calcular total pendiente desde los totales de LA o sumando manualmente
     let totalPendingAmountUsd = 0;
@@ -1303,6 +1303,151 @@ export const getOperationPaymentsWithTotal = asyncHandler(
     res.status(200).json({
       success: true,
       message: "Listado de deudas del usuario y total pendiente",
+      data: {
+        operationPayments: paginatedPayments,
+        totalAmount: parseFloat(totalPendingAmountUsd.toFixed(2)),
+      },
+      totalCount: totalCount,
+    });
+  },
+);
+
+export const getOperationPaymentsHome = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    // Obtener datos del usuario para construir el RIF
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Usuario no encontrado",
+        code: "not_found",
+      });
+    }
+
+    const rif = user.identificationType + user.document;
+
+    // Consultar deuda en LA Sistemas
+    const debtResult = await consultDebt({ Rif: rif });
+
+    if (!debtResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: debtResult.message,
+        code: "error",
+      });
+    }
+
+    // Extraer referencias únicas de todas las posiciones para buscar iconos
+    const posiciones = debtResult.data?.Posiciones?.Posicion || [];
+    const posicionesArray = Array.isArray(posiciones)
+      ? posiciones
+      : [posiciones];
+
+    const copasoIds = posicionesArray
+      .map((p) => p.Copasoapertura)
+      .filter((ref) => ref && ref.trim() !== "");
+
+    // Buscar operaciones por referencia para obtener los iconos
+    const operations = await Operation.find({
+      laCopaso: { $in: copasoIds },
+    })
+      .select("laCopaso icon")
+      .lean();
+
+    // Crear mapa de referencia -> icon
+    const referenceToIconMap = new Map<string, string>();
+    for (const op of operations) {
+      if (op.laCopaso && op.icon) {
+        referenceToIconMap.set(op.laCopaso, op.icon);
+      }
+    }
+
+    // Extraer cuotas de todas las posiciones
+    let allPayments: any[] = [];
+    for (const posicion of posicionesArray) {
+      // Verificar si hay cuotas
+      if (!posicion.Cuotas?.Cuota) continue;
+
+      const cuotas = posicion.Cuotas.Cuota;
+      // Asegurar que sea un array (a veces puede venir como objeto si es solo uno)
+      const cuotasArray = Array.isArray(cuotas) ? cuotas : [cuotas];
+
+      // Obtener el icono de la operación si existe
+      const operationIcon = posicion.Copasoapertura
+        ? referenceToIconMap.get(posicion.Copasoapertura)
+        : null;
+      const iconUrl = operationIcon
+        ? // ? `${env.PUBLIC_API_URL}/icons/${operationIcon}-white.png`
+          `${operationIcon}`
+        : null;
+
+      for (const cuota of cuotasArray) {
+        // Parsear la fecha DD/MM/YYYY
+        const [day, month, year] = cuota.Fechacuota.split("/").map(Number);
+        const fechaCuota = new Date(year, month - 1, day);
+
+        // Parsear el monto (viene con espacios y formato numérico)
+        const montoCuota = parseFloat(
+          cuota.Montocuota.replace(/[^\d.-]/g, "").trim(),
+        );
+
+        // Mapear status de LA Sistemas a nuestro formato
+        let status = "pending";
+        const statusLA = cuota.Status?.toLowerCase() || "";
+        if (statusLA.includes("pendiente")) {
+          status = "pending";
+        } else if (statusLA.includes("pagad")) {
+          status = "paid";
+        } else if (statusLA.includes("vencid")) {
+          status = "overdue";
+        } else if (statusLA.includes("mora")) {
+          status = "inArrears";
+        }
+
+        if (status !== "paid") {
+          allPayments.push({
+            id: cuota.Copasocuota,
+            date: fechaCuota,
+            status: status,
+            statusName: getOperationPaymentStatusName(status),
+            amountUsd: montoCuota,
+            iconUrl: iconUrl,
+            operationReference: posicion.Copasoapertura,
+          });
+        }
+      }
+    }
+
+    // Ordenar por fecha
+    allPayments.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // Agregar puntos
+    allPayments = allPayments.map((payment) => ({
+      ...payment,
+      points:
+        payment.status === "pending"
+          ? payment.amountUsd *
+            (getDaysDifference(payment.date, new Date()) >= 5 ? 2 : 1)
+          : 0,
+    }));
+
+    // Paginación
+    const totalCount = allPayments.length;
+    const paginatedPayments = allPayments.slice(0, 6);
+
+    // Calcular total pendiente desde los totales de LA o sumando manualmente
+    let totalPendingAmountUsd = 0;
+    totalPendingAmountUsd = allPayments
+      .filter((p) => p.status !== "paid")
+      .reduce((acc, p) => acc + p.amountUsd, 0);
+
+    res.status(200).json({
+      success: true,
+      message: "Listado de 6 deudas y total pendiente",
       data: {
         operationPayments: paginatedPayments,
         totalAmount: parseFloat(totalPendingAmountUsd.toFixed(2)),
