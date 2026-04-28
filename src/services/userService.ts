@@ -216,35 +216,38 @@ export const getScore = async (user: env.User) => {
     (item) => item.code === "education",
   );
   const educationScore = educationConfig?.score || 0;
-  const noneItem = educationConfig?.items?.find((item) => item.code === "n");
+  const noneItem = educationConfig?.items?.find((item) => item.code === "none");
+  const primariaItem = educationConfig?.items?.find(
+    (item) => item.code === "primary",
+  );
   const bachillerItem = educationConfig?.items?.find(
-    (item) => item.code === "bachiller",
+    (item) => item.code === "high-school",
   );
   const universitarioItem = educationConfig?.items?.find(
-    (item) => item.code === "universitario",
+    (item) => item.code === "bachelor",
   );
-  const ingenieroItem = educationConfig?.items?.find(
-    (item) => item.code === "ingeniero",
-  );
+  // const ingenieroItem = educationConfig?.items?.find(
+  //   (item) => item.code === "ingeniero",
+  // );
   const educationItemCode =
-    user.education === "4-N"
-      ? "n"
-      : user.education === "1-BACHILLER"
-        ? "bachiller"
-        : user.education === "2-UNIVERSITARIO"
-          ? "universitario"
-          : user.education === "3-INGENIERO"
-            ? "ingeniero"
+    user.education === "none"
+      ? "none"
+      : user.education === "primary"
+        ? "primary"
+        : user.education === "high_school"
+          ? "high-school"
+          : user.education === "bachelor"
+            ? "universitario"
             : "";
   const educationContribution =
-    educationItemCode === "n"
+    educationItemCode === "none"
       ? educationScore * ((noneItem?.value || 0) / 100)
-      : educationItemCode === "bachiller"
-        ? educationScore * ((bachillerItem?.value || 0) / 100)
-        : educationItemCode === "universitario"
-          ? educationScore * ((universitarioItem?.value || 0) / 100)
-          : educationItemCode === "ingeniero"
-            ? educationScore * ((ingenieroItem?.value || 0) / 100)
+      : educationItemCode === "primary"
+        ? educationScore * ((primariaItem?.value || 0) / 100)
+        : educationItemCode === "high-school"
+          ? educationScore * ((bachillerItem?.value || 0) / 100)
+          : educationItemCode === "universitario"
+            ? educationScore * ((universitarioItem?.value || 0) / 100)
             : 0;
   score += educationContribution;
   logSectionScore("education", educationContribution, {
