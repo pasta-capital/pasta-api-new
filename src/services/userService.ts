@@ -130,8 +130,8 @@ export const getScore = async (user: env.User) => {
   );
   const incomeItemCode =
     user.income !== Income.VeryLow && user.income !== Income.Low
-      ? "30-percent-plus"
-      : "30-percent-minus";
+      ? "30-percent-minus"
+      : "30-percent-plus";
   const incomeContribution =
     user.income !== Income.VeryLow && user.income !== Income.Low
       ? incomeScore * ((highIncomeItem?.value || 0) / 100)
@@ -237,7 +237,7 @@ export const getScore = async (user: env.User) => {
         : user.education === "high_school"
           ? "high-school"
           : user.education === "bachelor"
-            ? "universitario"
+            ? "bachelor"
             : "";
   const educationContribution =
     educationItemCode === "none"
@@ -246,7 +246,7 @@ export const getScore = async (user: env.User) => {
         ? educationScore * ((primariaItem?.value || 0) / 100)
         : educationItemCode === "high-school"
           ? educationScore * ((bachillerItem?.value || 0) / 100)
-          : educationItemCode === "universitario"
+          : educationItemCode === "bachelor"
             ? educationScore * ((universitarioItem?.value || 0) / 100)
             : 0;
   score += educationContribution;
