@@ -123,10 +123,10 @@ export const getScore = async (user: env.User) => {
   );
   const incomeScore = incomeConfig?.score || 0;
   const lowIncomeItem = incomeConfig?.items?.find(
-    (item) => item.code === "30-percent-minus",
+    (item) => item.code === "30-percent-plus",
   );
   const highIncomeItem = incomeConfig?.items?.find(
-    (item) => item.code === "30-percent-plus",
+    (item) => item.code === "30-percent-minus",
   );
   const incomeItemCode =
     user.income !== Income.VeryLow && user.income !== Income.Low
