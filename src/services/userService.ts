@@ -1,4 +1,5 @@
 import CreditScore from "../models/creditScore";
+import * as logger from "../common/logger";
 import {
   Dependents,
   Education,
@@ -13,9 +14,24 @@ import * as env from "../config/env.config";
 export const getScore = async (user: env.User) => {
   let score = 0;
   let ci = ["20653382", "21284308", "23685432"];
+  const logSectionScore = (
+    section: string,
+    contribution: number,
+    details?: Record<string, unknown>,
+  ) => {
+    logger.operation(`getScore - ${section}`, {
+      contribution,
+      totalScore: score,
+      ...details,
+    });
+  };
 
   if (ci.includes(user.document)) {
     score = 200;
+    logSectionScore("manual-override", score, {
+      document: user.document,
+      reason: "whitelisted-document",
+    });
     return score;
   }
 
@@ -44,7 +60,11 @@ export const getScore = async (user: env.User) => {
     (item) => item.code === seniorityCode,
   );
   const seniorityItemValue = (seniorityItem?.value || 0) / 100;
-  score += seniorityScore * seniorityItemValue;
+  const seniorityContribution = seniorityScore * seniorityItemValue;
+  score += seniorityContribution;
+  logSectionScore("seniority", seniorityContribution, {
+    selectedCode: seniorityCode,
+  });
 
   // Estado civil
   const maritalStatusConfig = creditScoreConfig.find(
@@ -69,7 +89,11 @@ export const getScore = async (user: env.User) => {
     (item) => item.code === maritalStatusCode,
   );
   const maritalStatusItemValue = (maritalStatusItem?.value || 0) / 100;
-  score += maritalStatusScore * maritalStatusItemValue;
+  const maritalStatusContribution = maritalStatusScore * maritalStatusItemValue;
+  score += maritalStatusContribution;
+  logSectionScore("marital-status", maritalStatusContribution, {
+    selectedCode: maritalStatusCode,
+  });
 
   // Telefono
   if (user.userAgent) {
@@ -77,18 +101,19 @@ export const getScore = async (user: env.User) => {
     const phoneConfig = creditScoreConfig.find((item) => item.code === "phone");
     const phoneScore = phoneConfig?.score || 0;
     if (osVersion.includes("Android")) {
-      if (isHigherThanAndroid12(user.userAgent))
-        score +=
-          phoneScore *
-          ((phoneConfig?.items?.find((item) => item.code === "2-years-minus")
-            ?.value || 0) /
-            100);
-      else
-        score +=
-          phoneScore *
-          ((phoneConfig?.items?.find((item) => item.code === "2-years-plus")
-            ?.value || 0) /
-            100);
+      const phoneItemCode = isHigherThanAndroid12(user.userAgent)
+        ? "2-years-minus"
+        : "2-years-plus";
+      const phoneContribution =
+        phoneScore *
+        ((phoneConfig?.items?.find((item) => item.code === phoneItemCode)
+          ?.value || 0) /
+          100);
+      score += phoneContribution;
+      logSectionScore("phone", phoneContribution, {
+        osVersion,
+        selectedCode: phoneItemCode,
+      });
     }
   }
 
@@ -103,9 +128,18 @@ export const getScore = async (user: env.User) => {
   const highIncomeItem = incomeConfig?.items?.find(
     (item) => item.code === "30-percent-plus",
   );
-  if (user.income !== Income.VeryLow && user.income !== Income.Low)
-    score += incomeScore * ((highIncomeItem?.value || 0) / 100);
-  else score += incomeScore * ((lowIncomeItem?.value || 0) / 100);
+  const incomeItemCode =
+    user.income !== Income.VeryLow && user.income !== Income.Low
+      ? "30-percent-plus"
+      : "30-percent-minus";
+  const incomeContribution =
+    user.income !== Income.VeryLow && user.income !== Income.Low
+      ? incomeScore * ((highIncomeItem?.value || 0) / 100)
+      : incomeScore * ((lowIncomeItem?.value || 0) / 100);
+  score += incomeContribution;
+  logSectionScore("loan-capacity", incomeContribution, {
+    selectedCode: incomeItemCode,
+  });
 
   // Genero
   const genderConfig = creditScoreConfig.find((item) => item.code === "gender");
@@ -114,9 +148,15 @@ export const getScore = async (user: env.User) => {
     (item) => item.code === "female",
   );
   const maleItem = genderConfig?.items?.find((item) => item.code === "male");
-  if (user.gender === Gender.Female)
-    score += genderScore * ((femaleItem?.value || 0) / 100);
-  else score += genderScore * ((maleItem?.value || 0) / 100);
+  const genderItemCode = user.gender === Gender.Female ? "female" : "male";
+  const genderContribution =
+    user.gender === Gender.Female
+      ? genderScore * ((femaleItem?.value || 0) / 100)
+      : genderScore * ((maleItem?.value || 0) / 100);
+  score += genderContribution;
+  logSectionScore("gender", genderContribution, {
+    selectedCode: genderItemCode,
+  });
 
   // Dependientes
   const dependentsConfig = creditScoreConfig.find(
@@ -132,40 +172,44 @@ export const getScore = async (user: env.User) => {
   const twoDependentsPlusItem = dependentsConfig?.items?.find(
     (item) => item.code === "2-dependents-plus",
   );
-  if (user.dependents === Dependents.Zero)
-    score += dependentsScore * ((zeroDependentsItem?.value || 0) / 100);
-  else if (user.dependents === Dependents.One)
-    score += dependentsScore * ((oneDependentItem?.value || 0) / 100);
-  else score += dependentsScore * ((twoDependentsPlusItem?.value || 0) / 100);
+  const dependentsItemCode =
+    user.dependents === Dependents.Zero
+      ? "0"
+      : user.dependents === Dependents.One
+        ? "1-dependent"
+        : "2-dependents-plus";
+  const dependentsContribution =
+    user.dependents === Dependents.Zero
+      ? dependentsScore * ((zeroDependentsItem?.value || 0) / 100)
+      : user.dependents === Dependents.One
+        ? dependentsScore * ((oneDependentItem?.value || 0) / 100)
+        : dependentsScore * ((twoDependentsPlusItem?.value || 0) / 100);
+  score += dependentsContribution;
+  logSectionScore("dependents", dependentsContribution, {
+    selectedCode: dependentsItemCode,
+  });
 
   // Edad
   const ageConfig = creditScoreConfig.find((item) => item.code === "age");
   const ageScore = ageConfig?.score || 0;
   const age = getAge(user.birthDate);
-  if (age < 23)
-    score +=
-      ageScore *
-      ((ageConfig?.items?.find((item) => item.code === "23-years-minus")
-        ?.value || 0) /
-        100);
-  else if (age >= 23 && age < 45)
-    score +=
-      ageScore *
-      ((ageConfig?.items?.find((item) => item.code === "23-45-years")?.value ||
-        0) /
-        100);
-  else if (age >= 45 && age < 60)
-    score +=
-      ageScore *
-      ((ageConfig?.items?.find((item) => item.code === "45-60-years")?.value ||
-        0) /
-        100);
-  else if (age >= 60)
-    score +=
-      ageScore *
-      ((ageConfig?.items?.find((item) => item.code === "60-years-plus")
-        ?.value || 0) /
-        100);
+  const ageItemCode =
+    age < 23
+      ? "23-years-minus"
+      : age < 45
+        ? "23-45-years"
+        : age < 60
+          ? "45-60-years"
+          : "60-years-plus";
+  const ageContribution =
+    ageScore *
+    ((ageConfig?.items?.find((item) => item.code === ageItemCode)?.value || 0) /
+      100);
+  score += ageContribution;
+  logSectionScore("age", ageContribution, {
+    age,
+    selectedCode: ageItemCode,
+  });
 
   // Educacion
   const educationConfig = creditScoreConfig.find(
@@ -182,14 +226,34 @@ export const getScore = async (user: env.User) => {
   const ingenieroItem = educationConfig?.items?.find(
     (item) => item.code === "ingeniero",
   );
-  if (user.education === "4-N")
-    score += educationScore * ((noneItem?.value || 0) / 100);
-  else if (user.education === "1-BACHILLER")
-    score += educationScore * ((bachillerItem?.value || 0) / 100);
-  else if (user.education === "2-UNIVERSITARIO")
-    score += educationScore * ((universitarioItem?.value || 0) / 100);
-  else if (user.education === "3-INGENIERO")
-    score += educationScore * ((ingenieroItem?.value || 0) / 100);
+  const educationItemCode =
+    user.education === "4-N"
+      ? "n"
+      : user.education === "1-BACHILLER"
+        ? "bachiller"
+        : user.education === "2-UNIVERSITARIO"
+          ? "universitario"
+          : user.education === "3-INGENIERO"
+            ? "ingeniero"
+            : "";
+  const educationContribution =
+    educationItemCode === "n"
+      ? educationScore * ((noneItem?.value || 0) / 100)
+      : educationItemCode === "bachiller"
+        ? educationScore * ((bachillerItem?.value || 0) / 100)
+        : educationItemCode === "universitario"
+          ? educationScore * ((universitarioItem?.value || 0) / 100)
+          : educationItemCode === "ingeniero"
+            ? educationScore * ((ingenieroItem?.value || 0) / 100)
+            : 0;
+  score += educationContribution;
+  logSectionScore("education", educationContribution, {
+    selectedCode: educationItemCode,
+  });
+
+  logger.operation("getScore - final-score", {
+    totalScore: score,
+  });
 
   return score;
 };
