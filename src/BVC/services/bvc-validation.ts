@@ -5,7 +5,7 @@ import {
   BvcP2CValidateSchema,
 } from "../interfaces/bvc-methods/validations";
 import { BankOperation } from "../models/operation";
-import { BVC_BANK_ACCOUNT_CODE } from "../../config/env.config";
+import { BVC_BANK_ACCOUNT_CODE, NODE_ENV } from "../../config/env.config";
 import { getBankRef } from "../utils/helper";
 import { UniversalSchema } from "../interfaces/proxy-methods/request-bvc";
 /**
@@ -22,7 +22,7 @@ export const validateP2C = async (rawData: any) => {
     monto: universal.amount,
     pagador: universal.name,
   };
-  console.log("BVC P2C Payload:", bcvPassThrough);
+
   const result = BvcP2CValidateSchema.safeParse(bcvPassThrough);
   if (!result.success) throw result.error;
 
@@ -81,13 +81,13 @@ export const validateP2C = async (rawData: any) => {
     };
 
     //FOR DEV ONLY.
-    if (data.processPayment === true) {
+    if (NODE_ENV === "production") {
       payload.processPayment = true;
     }
     //SHOULD BE ALWAYS TRUE IN PROD ENVIRONMENTS
     //payload.processPayment = true;
     console.log(`BVC: Validando Pago Móvil P2C - Ref: ${data.referencia}`);
-
+    console.log("Payload enviado a BVC:", payload);
     const response = await postToBvc(
       BVC_ENDPOINTS.VALIDATION.PAGO_MOVIL,
       payload,
