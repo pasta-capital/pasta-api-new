@@ -12,7 +12,7 @@ import * as env from "../config/env.config";
 
 export const getScore = async (user: env.User) => {
   let score = 0;
-  let ci = ["20653382", "21284308", "23685432", "26254693"];
+  let ci = ["20653382", "21284308", "23685432"];
 
   if (ci.includes(user.document)) {
     score = 200;
